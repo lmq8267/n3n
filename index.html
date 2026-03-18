@@ -493,13 +493,18 @@
                 </div>
                 <div class="form-group">
                     <label for="edge-community-key" class="required">加密密钥</label>
-                    <input type="text" id="edge-community-key" placeholder="mysecretpassword" data-required="true">
+                    <input type="text" id="edge-community-key" placeholder="留空则不加密">
                 </div>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="edge-header-encryption">
+                    <label for="edge-header-encryption">启用头部加密</label>
+                </div><br>
                 <div class="form-row">
                     <div class="form-group">
                         <label for="edge-community-cipher">加密算法</label>
                         <select id="edge-community-cipher">
                             <option value="AES">AES</option>
+                            <option value="Twofish">Twofish</option>
                             <option value="ChaCha20">ChaCha20</option>
                             <option value="Speck">Speck</option>
                             <option value="NULL">NULL</option>
@@ -510,6 +515,7 @@
                         <select id="edge-community-compression">
                             <option value="none">无</option>
                             <option value="lzo1x">LZO1X</option>
+                            <option value="zstd">ZSTD</option>
                         </select>
                     </div>
                 </div>
@@ -517,7 +523,7 @@
                     <label>Supernode 地址列表</label>
                     <div id="edge-supernode-list" class="supernode-list">
                         <div class="supernode-item">
-                            <input type="text" placeholder="supernode.example.com:7777" data-required="true">
+                            <input type="text" placeholder="supernode.example.com:7654" data-required="true">
                             <button class="btn btn-small btn-remove" onclick="removeSupernode(this)">删除</button>
                         </div>
                     </div>
@@ -586,10 +592,6 @@
                         <label for="edge-tos">服务类型 (TOS)</label>
                         <input type="number" id="edge-tos" placeholder="0">
                     </div>
-                    <div class="form-group">
-                        <label for="edge-description">设备描述</label>
-                        <input type="text" id="edge-description" placeholder="my-edge-device">
-                    </div>
                 </div>
                 <div class="checkbox-group">
                     <input type="checkbox" id="edge-connection-p2p" checked>
@@ -603,6 +605,7 @@
                     <input type="checkbox" id="edge-pmtu-discovery">
                     <label for="edge-pmtu-discovery">启用PMTU发现</label>
                 </div>
+                <br>
                 <div class="form-group">
                     <label for="edge-supernode-selection">Supernode 选择策略</label>
                     <select id="edge-supernode-selection">
@@ -616,7 +619,7 @@
             <div class="section">
                 <h3>认证设置</h3>
                 <div class="form-group">
-                    <label for="edge-auth-username">用户名</label>
+                    <label for="edge-auth-username">设备描述/认证用户名</label>
                     <input type="text" id="edge-auth-username" placeholder="username">
                 </div>
                 <div class="form-group">
@@ -634,7 +637,7 @@
                 <div class="form-row">
                     <div class="form-group">
                         <label for="edge-mgmt-port">管理端口</label>
-                        <input type="number" id="edge-mgmt-port" placeholder="5678">
+                        <input type="number" id="edge-mgmt-port" placeholder="5644">
                     </div>
                     <div class="form-group">
                         <label for="edge-mgmt-password">管理密码</label>
@@ -679,6 +682,7 @@
                     <input type="checkbox" id="edge-filter-routing">
                     <label for="edge-filter-routing">允许路由</label>
                 </div>
+                <br>
                 <div class="form-group">
                     <label for="edge-filter-rules">过滤规则</label>
                     <textarea id="edge-filter-rules"
@@ -713,6 +717,7 @@
                     <input type="checkbox" id="sn-spoofing" checked>
                     <label for="sn-spoofing">启用欺骗保护</label>
                 </div>
+                <br>
                 <div class="form-group">
                     <label for="sn-version">版本字符串</label>
                     <input type="text" id="sn-version" placeholder="自定义版本信息">
@@ -723,12 +728,12 @@
                 <h3>连接设置</h3>
                 <div class="form-group">
                     <label for="sn-bind" class="required">绑定地址</label>
-                    <input type="text" id="sn-bind" value="0.0.0.0:7777" placeholder="0.0.0.0:7777"
+                    <input type="text" id="sn-bind" value="0.0.0.0:7654" placeholder="0.0.0.0:7654"
                         data-required="true">
                 </div>
                 <div class="form-group">
                     <label for="sn-advertise-addr">广播地址</label>
-                    <input type="text" id="sn-advertise-addr" placeholder="192.168.1.100:7777">
+                    <input type="text" id="sn-advertise-addr" placeholder="192.168.1.100:7654">
                 </div>
                 <div class="form-row">
                     <div class="form-group">
@@ -757,7 +762,7 @@
                     <label>对等节点列表</label>
                     <div id="sn-peer-list" class="supernode-list">
                         <div class="supernode-item">
-                            <input type="text" placeholder="peer1.example.com:7777">
+                            <input type="text" placeholder="peer1.example.com:7654">
                             <button class="btn btn-small btn-remove" onclick="removePeer(this)">删除</button>
                         </div>
                     </div>
@@ -792,7 +797,7 @@
                 <div class="form-row">
                     <div class="form-group">
                         <label for="sn-mgmt-port">管理端口</label>
-                        <input type="number" id="sn-mgmt-port" placeholder="5678">
+                        <input type="number" id="sn-mgmt-port" placeholder="5645">
                     </div>
                     <div class="form-group">
                         <label for="sn-mgmt-password">管理密码</label>
@@ -829,6 +834,7 @@
                     <input type="checkbox" id="sn-allow-routing">
                     <label for="sn-allow-routing">允许路由</label>
                 </div>
+                <br>
                 <div class="form-group">
                     <label for="sn-filter-rules">过滤规则</label>
                     <textarea id="sn-filter-rules"
@@ -841,7 +847,7 @@
                 <div class="form-group">
                     <label for="sn-logging-verbose">日志级别</label>
                     <select id="sn-logging-verbose">
-                        <option value="0">错误</option>
+                        <option value="0" selected>错误</option>
                         <option value="1">警告</option>
                         <option value="2">信息</option>
                         <option value="3">调试</option>
@@ -913,7 +919,7 @@
             const item = document.createElement('div');
             item.className = 'supernode-item';
             item.innerHTML = `  
-                <input type="text" placeholder="supernode.example.com:7777" data-required="true">  
+                <input type="text" placeholder="supernode.example.com:7654" data-required="true">  
                 <button class="btn btn-small btn-remove" onclick="removeSupernode(this)">删除</button>  
             `;
             list.appendChild(item);
@@ -928,7 +934,7 @@
             const item = document.createElement('div');
             item.className = 'supernode-item';
             item.innerHTML = `  
-                <input type="text" placeholder="peer.example.com:7777">  
+                <input type="text" placeholder="peer.example.com:7654">  
                 <button class="btn btn-small btn-remove" onclick="removePeer(this)">删除</button>  
             `;
             list.appendChild(item);
@@ -1057,8 +1063,13 @@
             const communityKey = document.getElementById('edge-community-key').value;
             if (communityKey) config += `# 加密密钥，同一社区必须使用相同密钥才能加入\nkey=${communityKey}\n`;
 
+            const headerEncryption = document.getElementById('edge-header-encryption').checked;
+            if (headerEncryption) {
+                config += `# 启用头部加密，防止社区名称泄露\nheader_encryption=${headerEncryption}\n`;
+            }
+
             const cipher = document.getElementById('edge-community-cipher').value;
-            if (cipher !== 'NULL') config += `# 加密算法 (AES/ChaCha20/Speck)\ncipher=${cipher}\n`;
+            if (cipher !== 'NULL') config += `# 加密算法 (Twofish/AES/ChaCha20/Speck)\ncipher=${cipher}\n`;
 
             const compression = document.getElementById('edge-community-compression').value;
             if (compression !== 'none') config += `# 数据压缩算法\ncompression=${compression}\n`;
@@ -1114,9 +1125,6 @@
             const tos = document.getElementById('edge-tos').value;
             if (tos) config += `# 服务类型 (QoS优先级)\ntos=${tos}\n`;
 
-            const description = document.getElementById('edge-description').value;
-            if (description) config += `# 设备描述 (管理界面显示)\ndescription=${description}\n`;
-
             const p2p = document.getElementById('edge-connection-p2p').checked;
             config += `# 是否允许P2P直连\nallow_p2p=${p2p}\n`;
 
@@ -1131,14 +1139,14 @@
 
             config += '\n';
 
-            // Auth section  
+            // Auth section 
             const username = document.getElementById('edge-auth-username').value;
             const password = document.getElementById('edge-auth-password').value;
             const pubkey = document.getElementById('edge-auth-pubkey').value;
 
             if (username || password || pubkey) {
                 config += '# 用户认证设置\n[auth]\n';
-                if (username) config += `# 认证用户名\nusername=${username}\n`;
+                if (username) config += `# 设备描述 (管理界面显示,也用作认证用户名)\ndescription=${username}\n`;
                 if (password) config += `# 认证密码\npassword=${password}\n`;
                 if (pubkey) config += `# 公钥认证\npubkey=${pubkey}\n`;
                 config += '\n';

@@ -8,8 +8,163 @@
 
 ---- 
 
-### 程序介绍：
+### 帮助信息：
 
+#### n3n-supernode 
+
+```
+./n3n-supernode -h
+
+n3n —— 一个点对点 VPN，用于在没有局域网（LAN）的情况下使用
+
+用法：supernode [选项...] [命令] [命令参数]
+
+例如：supernode start [会话名称]
+
+  根据会话名称加载配置（默认是 'supernode.conf'）
+  命令行中的任何选项都会覆盖已加载的配置
+
+更多帮助命令：
+
+  supernode help commands   查看所有命令帮助
+  supernode help options    查看所有选项帮助
+  supernode help            查看总体帮助
+```
+
+```
+./n3n-supernode help commands
+
+debug      -> 调试相关命令
+
+config     -> 配置相关命令
+  addr       显示内部配置中的地址和大小
+  dump       [级别] - 输出默认配置内容
+  load_dump  [会话名称] - 从所有常规来源加载配置，然后输出
+
+help       -> 帮助相关命令
+  about      基本命令帮助
+  commands   显示所有可用的命令行命令
+  config     配置文件帮助
+  options    说明所有命令行选项
+  version    显示版本信息
+
+start      [会话名称] - 启动会话
+```
+
+```
+./n3n-supernode help options
+
+选项        等效的配置项
+
+-O <section>.<option>=<value>   设置任意配置项
+-V                             显示版本信息
+-d                             daemon.background=true（后台运行）
+-v                             增加日志输出详细程度
+
+短选项   对应的长选项
+-d        --daemon
+-h        --help
+-v        --verbose
+-V        --version
+```
+
+#### n3n-supernode 
+
+```
+./n3n-edge -h
+
+n3n —— 一个点对点 VPN，用于在没有局域网（LAN）的情况下使用
+
+用法：edge [选项...] [命令] [命令参数]
+
+例如：edge start [会话名称]
+
+  根据会话名称加载配置（默认是 'edge.conf'）
+  命令行中的任何选项都会覆盖已加载的配置
+
+更多帮助命令：
+
+  edge help commands   查看所有命令帮助
+  edge help options    查看所有选项帮助
+  edge help            查看总体帮助
+```
+
+```
+./n3n-edge help commands
+
+所有可用子命令列表
+需要多个单词才能完成的子命令会用 “->” 表示
+
+例如：edge help about
+
+debug      -> （调试命令，不保证易用性）
+  config     ->
+    addr       显示内部配置中的地址和大小
+    dump       [级别] - 输出默认配置内容
+    load_dump  [会话名称] - 从所有常规来源加载配置，然后输出
+  random     ->
+    seed       显示已编译的随机数种子生成器
+
+help       -> 帮助相关命令
+  about      基本命令帮助
+  commands   显示所有可用的命令行命令
+  config     显示所有配置文件帮助文本
+  options    说明所有命令行选项
+  transform  显示已编译的加密和压缩模块
+  version    显示版本信息
+
+start      [会话名称] - 启动会话
+
+tools      -> 工具相关命令
+  keygen     生成公钥
+
+test       -> 测试相关命令
+  benchmark  [pretty|raw] - 运行内部性能测试
+  builtin    [级别] - 运行内置测试
+  config     ->
+    roundtrip  <会话名称> - 仅加载配置文件，然后再输出
+  hashing    已弃用
+  fakebench  [名称] - 统计测试指令（当 perf 不可用时）
+```
+
+```
+./n3n-edge help options
+
+选项        等效的配置项
+
+-O <section>.<option>=<value>   设置任意配置项
+-V                             显示版本信息
+-a <参数>                      设置 tuntap.address 和 tuntap.address_mode
+-c <参数>                      community.name=<参数>
+-d                             daemon.background=true（后台运行）
+-k <参数>                      community.key=<参数>
+-l <参数>                      community.supernode=<参数>
+-r                             filter.allow_routing=true（允许路由转发）
+-v                             增加日志输出详细程度
+
+短选项   对应的长选项
+-c        --community=<参数>
+-d        --daemon
+-h        --help
+-l        --supernode-list=<参数>
+-v        --verbose
+-V        --version
+```
+
+#### n3n-supernode
+
+```
+./n3n-portfwd
+
+n3n-portfwd [-t <management_port>] [-v] [-V]
+  -t <端口> 指定管理端口（默认：5644），需要与 edge 的管理端口配置匹配
+  -v 增加详细输出级别
+  -V 降低详细输出级别
+```
+
+----
+
+### 程序介绍：
 
 | 名称 | 描述 |
 |------|------|

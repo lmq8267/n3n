@@ -538,7 +538,8 @@ jobs:
                    no-shared no-zlib no-tests --prefix=${GITHUB_WORKSPACE}/thirdparty/openssl \
                    LDFLAGS="${LDFLAGS}" CFLAGS="${CFLAGS}"
               
-                 gmake -j$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 4)
+                 #gmake -j$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 4)
+                 gmake
                  gmake install_sw
                  OPENSSL_DIR=${GITHUB_WORKSPACE}/thirdparty/openssl
                  cd ${GITHUB_WORKSPACE}

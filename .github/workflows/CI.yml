@@ -328,6 +328,7 @@ jobs:
               sudo pkg install -y gmake cmake autoconf automake libtool pkgconf wget curl git-tiny python3 jq bash
               export CC="clang"
               export CXX="clang++"
+              export TZ='Asia/Shanghai'
               # 你可以在这里设置一些编译选项 如 -DSPECK_ARM_NEON
               export CFLAGS="-ffunction-sections -fdata-sections -O2 -w $CFLAGS -I/usr/local/include -I$(pwd)/thirdparty -static"
               export LDFLAGS="-s -Wl,--gc-sections $LDFLAGS -static"
@@ -499,6 +500,7 @@ jobs:
               # 这里只能用gcc 因为clang在arm64无法静态编译
               export CC="gcc"
               export CXX="g++"
+              export TZ='Asia/Shanghai'
               # 传递Netbsd标志 你可以在这里设置一些编译选项 如 -DSPECK_ARM_NEON
               export CFLAGS="-ffunction-sections -fdata-sections -O2 -w $CFLAGS -I/usr/include -I/usr/local/include -I$(pwd)/thirdparty -static -D_BSD_SOURCE -D_DEFAULT_SOURCE -D_NETBSD_SOURCE"
               export LDFLAGS="-s -Wl,--gc-sections $LDFLAGS -L/usr/lib -L/usr/local/lib -static"
@@ -674,6 +676,7 @@ jobs:
               export AUTOMAKE_VERSION=1.18
               export CC="clang"
               export CXX="clang++"
+              export TZ='Asia/Shanghai'
               # 你可以在这里设置一些编译选项 如 -DSPECK_ARM_NEON
               export CFLAGS="-ffunction-sections -fdata-sections -O2 -w $CFLAGS -I/usr/local/include -I$(pwd)/thirdparty -static"
               export LDFLAGS="-s -Wl,--gc-sections $LDFLAGS -static"
@@ -1075,6 +1078,7 @@ jobs:
          # 构建配置参数  
          CONFIGURE_FLAGS=""
          MAKE_FLAGS=""
+         export TZ='Asia/Shanghai'
          if [[ "$RUNNER_OS" == "Linux" && "${{ matrix.target }}" =~ windows$ ]]; then
             # Windows 交叉编译需要的系统库
             export LDFLAGS="$LDFLAGS -lws2_32 -liphlpapi -lnetapi32"

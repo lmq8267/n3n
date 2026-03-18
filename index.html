@@ -514,13 +514,13 @@
                         <label for="edge-community-compression">压缩算法</label>
                         <select id="edge-community-compression">
                             <option value="none">无</option>
-                            <option value="lzo1x">LZO1X</option>
+                            <option value="lzo">LZO</option>
                             <option value="zstd">ZSTD</option>
                         </select>
                     </div>
                 </div>
                 <div class="form-group">
-                    <label>Supernode 地址列表</label>
+                    <label class="required">Supernode 地址列表</label>
                     <div id="edge-supernode-list" class="supernode-list">
                         <div class="supernode-item">
                             <input type="text" placeholder="supernode.example.com:7654" data-required="true">
@@ -545,9 +545,9 @@
                     <div class="form-group">
                         <label for="edge-tuntap-mode">地址模式</label>
                         <select id="edge-tuntap-mode">
+                            <option value="auto" selected>自动选择</option>
                             <option value="static">静态指定</option>
                             <option value="dhcp">DHCP分配</option>
-                            <option value="auto">自动选择</option>
                         </select>
                     </div>
                 </div>
@@ -558,7 +558,7 @@
                     </div>
                     <div class="form-group">
                         <label for="edge-tuntap-mtu">MTU</label>
-                        <input type="number" id="edge-tuntap-mtu" placeholder="1400">
+                        <input type="number" id="edge-tuntap-mtu" placeholder="1290">
                     </div>
                 </div>
                 <div class="form-group">
@@ -576,7 +576,7 @@
                     </div>
                     <div class="form-group">
                         <label for="edge-advertise-addr">广播地址</label>
-                        <input type="text" id="edge-advertise-addr" placeholder="192.168.1.100:5000">
+                        <input type="text" id="edge-advertise-addr" placeholder="192.168.1.100">
                     </div>
                     <div class="form-group">
                         <label for="edge-connection-interval">注册间隔</label>
@@ -592,7 +592,13 @@
                         <label for="edge-tos">服务类型 (TOS)</label>
                         <input type="number" id="edge-tos" placeholder="0">
                     </div>
+
+                    <div class="form-group">
+                        <label for="edge-auth-username">设备描述/认证用户名</label>
+                        <input type="text" id="edge-auth-username" placeholder="username">
+                    </div>
                 </div>
+
                 <div class="checkbox-group">
                     <input type="checkbox" id="edge-connection-p2p" checked>
                     <label for="edge-connection-p2p">允许 P2P 连接</label>
@@ -618,10 +624,6 @@
 
             <div class="section">
                 <h3>认证设置</h3>
-                <div class="form-group">
-                    <label for="edge-auth-username">设备描述/认证用户名</label>
-                    <input type="text" id="edge-auth-username" placeholder="username">
-                </div>
                 <div class="form-group">
                     <label for="edge-auth-password">密码</label>
                     <input type="password" id="edge-auth-password" placeholder="password">
@@ -733,7 +735,7 @@
                 </div>
                 <div class="form-group">
                     <label for="sn-advertise-addr">广播地址</label>
-                    <input type="text" id="sn-advertise-addr" placeholder="192.168.1.100:7654">
+                    <input type="text" id="sn-advertise-addr" placeholder="192.168.1.100">
                 </div>
                 <div class="form-row">
                     <div class="form-group">
@@ -801,7 +803,7 @@
                     </div>
                     <div class="form-group">
                         <label for="sn-mgmt-password">管理密码</label>
-                        <input type="text" id="sn-mgmt-password" placeholder="admin">
+                        <input type="text" id="sn-mgmt-password" placeholder="n3n">
                     </div>
                 </div>
             </div>
@@ -811,11 +813,11 @@
                 <div class="form-row">
                     <div class="form-group">
                         <label for="sn-userid">运行用户ID</label>
-                        <input type="number" id="sn-userid" placeholder="1000">
+                        <input type="text" id="sn-userid" placeholder="nobody">
                     </div>
                     <div class="form-group">
                         <label for="sn-groupid">运行组ID</label>
-                        <input type="number" id="sn-groupid" placeholder="1000">
+                        <input type="text" id="sn-groupid" placeholder="nogroup">
                     </div>
                 </div>
                 <div class="checkbox-group">
@@ -847,9 +849,9 @@
                 <div class="form-group">
                     <label for="sn-logging-verbose">日志级别</label>
                     <select id="sn-logging-verbose">
-                        <option value="0" selected>错误</option>
+                        <option value="0">错误</option>
                         <option value="1">警告</option>
-                        <option value="2">信息</option>
+                        <option value="2" selected>信息</option>
                         <option value="3">调试</option>
                         <option value="4">详细</option>
                     </select>
@@ -1054,156 +1056,168 @@
             let config = '# n3n Edge 配置文件\n';
             config += '# 生成时间: ' + new Date().toLocaleString() + '\n\n';
 
-            // Community section
-            config += '# 社区设置 - 定义网络身份和加密参数\n';
-            config += '[community]\n';
+            // 收集所有section的配置内容  
+            let communityContent = '';
+            let tuntapContent = '';
+            let connectionContent = '';
+            let authContent = '';
+            let managementContent = '';
+            let daemonContent = '';
+            let filterContent = '';
+            let loggingContent = '';
+
+            // Community section  
             const communityName = document.getElementById('edge-community-name').value;
-            if (communityName) config += `# 社区名称，同一社区的节点才能加入同一局域网\nname=${communityName}\n`;
+            if (communityName) communityContent += `# 社区名称，同一社区的节点才能加入同一局域网\nname=${communityName}\n`;
 
             const communityKey = document.getElementById('edge-community-key').value;
-            if (communityKey) config += `# 加密密钥，同一社区必须使用相同密钥才能加入\nkey=${communityKey}\n`;
-
-            const headerEncryption = document.getElementById('edge-header-encryption').checked;
-            if (headerEncryption) {
-                config += `# 启用头部加密，防止社区名称泄露\nheader_encryption=${headerEncryption}\n`;
+            if (communityKey) {
+                communityContent += `# 加密密钥，同一社区必须使用相同密钥\nkey=${communityKey}\n`;
+                const cipher = document.getElementById('edge-community-cipher').value;
+                if (cipher !== 'AES') communityContent += `# 加密算法\ncipher=${cipher}\n`;
             }
 
-            const cipher = document.getElementById('edge-community-cipher').value;
-            if (cipher !== 'NULL') config += `# 加密算法 (Twofish/AES/ChaCha20/Speck)\ncipher=${cipher}\n`;
+            const headerEncryption = document.getElementById('edge-header-encryption').checked;
+            if (headerEncryption) communityContent += `# 启用头部加密，防止社区名称泄露\nheader_encryption=${headerEncryption}\n`;
 
             const compression = document.getElementById('edge-community-compression').value;
-            if (compression !== 'none') config += `# 数据压缩算法\ncompression=${compression}\n`;
+            if (compression !== 'none') communityContent += `# 数据压缩算法\ncompression=${compression}\n`;
 
-            // Multiple supernodes
-            config += '# Supernode服务器列表 - 可指定多个实现负载均衡\n';
             const supernodeInputs = document.querySelectorAll('#edge-supernode-list input');
             supernodeInputs.forEach(input => {
                 const value = input.value.trim();
-                if (value) config += `# Supernode地址:端口\nsupernode=${value}\n`;
+                if (value) communityContent += `# Supernode地址:端口 (可指定多个实现负载均衡)\nsupernode=${value}\n`;
             });
 
-            config += '\n';
+            if (communityContent) {
+                config += '# 社区设置 - 定义网络身份和加密参数\n[community]\n' + communityContent + '\n';
+            }
 
-            // Tuntap section
-            config += '# 虚拟网络接口设置\n';
-            config += '[tuntap]\n';
+            // Tuntap section  
             const deviceName = document.getElementById('edge-tuntap-name').value;
-            if (deviceName) config += `# TAP设备名称 (Linux下创建，Windows下选择)\nname=${deviceName}\n`;
-
-            const address = document.getElementById('edge-tuntap-address').value;
-            if (address) config += `# IP地址和子网掩码\naddress=${address}\n`;
+            if (deviceName) tuntapContent += `# TAP设备名称\nname=${deviceName}\n`;
 
             const addressMode = document.getElementById('edge-tuntap-mode').value;
-            if (addressMode !== 'static') config += `# IP地址分配模式 (static/dhcp/auto)\naddress_mode=${addressMode}\n`;
+            const address = document.getElementById('edge-tuntap-address').value;
+            if (addressMode === 'static' && address) {
+                tuntapContent += `# IP地址和子网掩码\naddress=${address}\n`;
+            }
+            if (addressMode !== 'auto') tuntapContent += `# IP地址分配模式\naddress_mode=${addressMode}\n`;
 
             const mac = document.getElementById('edge-tuntap-mac').value;
-            if (mac) config += `# MAC地址 (默认随机生成)\nmacaddr=${mac}\n`;
+            if (mac) tuntapContent += `# MAC地址\nmacaddr=${mac}\n`;
 
             const mtu = document.getElementById('edge-tuntap-mtu').value;
-            if (mtu) config += `# 最大传输单元\nmtu=${mtu}\n`;
+            if (mtu) tuntapContent += `# 最大传输单元MTU\nmtu=${mtu}\n`;
 
             const metric = document.getElementById('edge-tuntap-metric').value;
-            if (metric) config += `# 接口度量值 (Windows专用，影响游戏检测)\nmetric=${metric}\n`;
+            if (metric) tuntapContent += `# 接口度量值 (Windows专用，影响游戏检测)\nmetric=${metric}\n`;
 
-            config += '\n';
+            if (tuntapContent) {
+                config += '# 虚拟网络接口设置\n[tuntap]\n' + tuntapContent + '\n';
+            }
 
-            // Connection section 
-            config += '# 网络连接和传输设置\n';
-            config += '[connection]\n';
+            // Connection section  
             const bind = document.getElementById('edge-connection-bind').value;
-            if (bind) config += `# 本地绑定地址:端口\nbind=${bind}\n`;
+            if (bind) connectionContent += `# 本地绑定地址:端口\nbind=${bind}\n`;
 
             const advertiseAddr = document.getElementById('edge-advertise-addr').value;
-            if (advertiseAddr) config += `# 向其他节点广播的地址\nadvertise_addr=${advertiseAddr}\n`;
+            if (advertiseAddr) connectionContent += `# 向其他节点广播的地址\nadvertise_addr=${advertiseAddr}\n`;
+
+            const username = document.getElementById('edge-auth-username').value;
+            if (username) connectionContent += `# 设备描述\ndescription=${username}\n`;
 
             const interval = document.getElementById('edge-connection-interval').value;
-            if (interval) config += `# 向supernode注册间隔(秒)\nregister_interval=${interval}\n`;
+            if (interval && interval !== '20') connectionContent += `# 向supernode注册间隔(秒)\nregister_interval=${interval}\n`;
 
             const registerTtl = document.getElementById('edge-register-ttl').value;
-            if (registerTtl) config += `# 注册包TTL值 (NAT穿透)\nregister_pkt_ttl=${registerTtl}\n`;
+            if (registerTtl) connectionContent += `# 注册包TTL值 (NAT穿透)\nregister_pkt_ttl=${registerTtl}\n`;
 
             const tos = document.getElementById('edge-tos').value;
-            if (tos) config += `# 服务类型 (QoS优先级)\ntos=${tos}\n`;
+            if (tos) connectionContent += `# 服务类型 (QoS优先级)\ntos=${tos}\n`;
 
             const p2p = document.getElementById('edge-connection-p2p').checked;
-            config += `# 是否允许P2P直连\nallow_p2p=${p2p}\n`;
+            if (!p2p) connectionContent += `# 是否允许P2P直连\nallow_p2p=${p2p}\n`; // 默认是true，只有禁用时才输出  
 
             const connectTcp = document.getElementById('edge-connect-tcp').checked;
-            if (connectTcp) config += `# 使用TCP连接到supernode\nconnect_tcp=${connectTcp}\n`;
+            if (connectTcp) connectionContent += `# 使用TCP连接到Supernode\nconnect_tcp=${connectTcp}\n`;
 
             const pmtuDiscovery = document.getElementById('edge-pmtu-discovery').checked;
-            if (pmtuDiscovery) config += `# 启用路径MTU发现\npmtu_discovery=${pmtuDiscovery}\n`;
+            if (pmtuDiscovery) connectionContent += `# 启用路径MTU发现\npmtu_discovery=${pmtuDiscovery}\n`;
 
             const snSelection = document.getElementById('edge-supernode-selection').value;
-            if (snSelection !== 'load') config += `# Supernode选择策略\nsupernode_selection=${snSelection}\n`;
+            if (snSelection !== 'load') connectionContent += `# Supernode选择策略\nsupernode_selection=${snSelection}\n`;
 
-            config += '\n';
+            if (connectionContent) {
+                config += '# 网络连接和传输设置\n[connection]\n' + connectionContent + '\n';
+            }
 
-            // Auth section 
-            const username = document.getElementById('edge-auth-username').value;
+            // Auth section  
             const password = document.getElementById('edge-auth-password').value;
             const pubkey = document.getElementById('edge-auth-pubkey').value;
 
-            if (username || password || pubkey) {
-                config += '# 用户认证设置\n[auth]\n';
-                if (username) config += `# 设备描述 (管理界面显示,也用作认证用户名)\ndescription=${username}\n`;
-                if (password) config += `# 认证密码\npassword=${password}\n`;
-                if (pubkey) config += `# 公钥认证\npubkey=${pubkey}\n`;
-                config += '\n';
+            if (password) authContent += `# 认证密码\npassword=${password}\n`;
+            if (pubkey) authContent += `# 公钥认证\npubkey=${pubkey}\n`;
+
+            if (authContent) {
+                config += '# 用户认证设置\n[auth]\n' + authContent + '\n';
             }
 
             // Management section  
             const mgmtPort = document.getElementById('edge-mgmt-port').value;
             const mgmtPassword = document.getElementById('edge-mgmt-password').value;
             const unixSockPerms = document.getElementById('edge-unix-sock-perms').value;
-            const enableDebugPages = document.getElementById('edge-enable-debug-pages').checked;
+            const debugPages = document.getElementById('edge-enable-debug-pages').checked;
 
-            if (mgmtPort || mgmtPassword || unixSockPerms || enableDebugPages) {
-                config += '# 管理接口设置\n[management]\n';
-                if (mgmtPort) config += `# 管理端口\nport=${mgmtPort}\n`;
-                if (mgmtPassword) config += `# 管理密码\npassword=${mgmtPassword}\n`;
-                if (unixSockPerms) config += `# Unix socket权限\nunix_sock_perms=${unixSockPerms}\n`;
-                if (enableDebugPages) config += `# 启用调试页面\nenable_debug_pages=${enableDebugPages}\n`;
-                config += '\n';
+            if (mgmtPort && mgmtPort !== '5644') managementContent += `# 管理端口\nport=${mgmtPort}\n`;
+            if (mgmtPassword && mgmtPassword !== 'n3n') managementContent += `# 管理密码\npassword=${mgmtPassword}\n`;
+            if (unixSockPerms) managementContent += `# Unix Socket权限\nunix_sock_perms=${unixSockPerms}\n`;
+            if (debugPages) managementContent += `# 启用调试页面\nenable_debug_pages=${debugPages}\n`;
+
+            if (managementContent) {
+                config += '# 管理接口设置\n[management]\n' + managementContent + '\n';
             }
 
             // Daemon section  
-            const user = document.getElementById('edge-daemon-user').value;
-            const group = document.getElementById('edge-daemon-group').value;
+            const userid = document.getElementById('edge-daemon-user').value;
+            const groupid = document.getElementById('edge-daemon-group').value;
             const background = document.getElementById('edge-daemon-background').checked;
 
-            if (user || group || background) {
-                config += '# 守护进程设置\n[daemon]\n';
-                if (user) config += `# 运行用户ID\nuserid=${user}\n`;
-                if (group) config += `# 运行组ID\ngroupid=${group}\n`;
-                config += `# 后台运行\nbackground=${background}\n`;
-                config += '\n';
+            if (userid) daemonContent += `# 运行用户ID\nuserid=${userid}\n`;
+            if (groupid) daemonContent += `# 运行组ID\ngroupid=${groupid}\n`;
+            if (background) daemonContent += `# 后台运行\nbackground=${background}\n`;
+
+            if (daemonContent) {
+                config += '# 守护进程设置\n[daemon]\n' + daemonContent + '\n';
             }
 
             // Filter section  
-            const multicast = document.getElementById('edge-filter-multicast').checked;
-            const routing = document.getElementById('edge-filter-routing').checked;
+            const allowMulticast = document.getElementById('edge-filter-multicast').checked;
+            const allowRouting = document.getElementById('edge-filter-routing').checked;
             const filterRules = document.getElementById('edge-filter-rules').value;
 
-            if (multicast || routing || filterRules) {
-                config += '# 流量过滤设置\n[filter]\n';
-                config += `# 允许多播流量\nallow_multicast=${multicast}\n`;
-                config += `# 允许IP路由转发\nallow_routing=${routing}\n`;
-                if (filterRules) {
-                    config += '# 过滤规则列表\n';
-                    filterRules.split('\n').forEach(rule => {
-                        rule = rule.trim();
-                        if (rule) config += `# 流量过滤规则\nrule=${rule}\n`;
-                    });
-                }
-                config += '\n';
+            if (allowMulticast) filterContent += `# 允许多播流量\nallow_multicast=${allowMulticast}\n`;
+            if (allowRouting) filterContent += `# 允许IP路由转发\nallow_routing=${allowRouting}\n`;
+            if (filterRules) {
+                filterContent += '# 过滤规则列表\n';
+                filterRules.split('\n').forEach(rule => {
+                    rule = rule.trim();
+                    if (rule) filterContent += `# 流量过滤规则\nrule=${rule}\n`;
+                });
+            }
+
+            if (filterContent) {
+                config += '# 流量过滤设置\n[filter]\n' + filterContent + '\n';
             }
 
             // Logging section  
             const verbose = document.getElementById('edge-logging-verbose').value;
-            if (verbose !== '2') { // Only include if not default  
-                config += '# 日志设置\n[logging]\n';
-                config += `# 日志级别 (0=错误, 1=警告, 2=信息, 3=调试, 4=详细)\nverbose=${verbose}\n`;
+            if (verbose !== '2') {
+                loggingContent += `# 日志级别(0=错误, 1=警告, 2=信息, 3=调试, 4=详细)\nverbose=${verbose}\n`;
+            }
+
+            if (loggingContent) {
+                config += '# 日志设置\n[logging]\n' + loggingContent + '\n';
             }
 
             return config;
@@ -1213,69 +1227,77 @@
             let config = '# n3n Supernode 配置文件\n';
             config += '# 生成时间: ' + new Date().toLocaleString() + '\n\n';
 
+            let supernodeContent = '';
+            let connectionContent = '';
+            let managementContent = '';
+            let daemonContent = '';
+            let filterContent = '';
+            let loggingContent = '';
+
             // Supernode section  
-            config += '# Supernode服务器设置\n[supernode]\n';
             const mac = document.getElementById('sn-mac').value;
-            if (mac) config += `# Supernode标识MAC地址\nmacaddr=${mac}\n`;
+            if (mac) supernodeContent += `# Supernode标识MAC地址\nmacaddr=${mac}\n`;
 
             const spoofing = document.getElementById('sn-spoofing').checked;
-            config += `# MAC/IP地址欺骗保护\nspoofing_protection=${spoofing}\n`;
+            if (!spoofing) supernodeContent += `# MAC/IP地址欺骗保护\nspoofing_protection=${spoofing}\n`; // 默认true，只有禁用时输出  
 
             const federation = document.getElementById('sn-federation').value;
-            if (federation) config += `# 联邦名称 (联邦内supernode共享)\nfederation=${federation}\n`;
+            if (federation && federation !== 'Federation') supernodeContent += `# 联邦名称\nfederation=${federation}\n`; // 默认"Federation"  
 
-            const autoIpMin = document.getElementById('sn-auto-ip-min').value;
-            if (autoIpMin) config += `# 自动IP分配范围起始\nauto_ip_min=${autoIpMin}\n`;
-
-            const autoIpMax = document.getElementById('sn-auto-ip-max').value;
-            if (autoIpMax) config += `# 自动IP分配范围结束\nauto_ip_max=${autoIpMax}\n`;
-
-            const communityFile = document.getElementById('sn-community-file').value;
-            if (communityFile) config += `# 社区列表文件路径\ncommunity_file=${communityFile}\n`;
-
-            const version = document.getElementById('sn-version').value;
-            if (version) config += `# 版本字符串\nversion=${version}\n`;
-
-            config += '\n';
-
-            // Connection section  
-            config += '# 网络连接设置\n[connection]\n';
-            const bind = document.getElementById('sn-bind').value;
-            if (bind) config += `# 监听地址:端口 (主服务端口)\nbind=${bind}\n`;
-
-            const advertiseAddr = document.getElementById('sn-advertise-addr').value;
-            if (advertiseAddr) config += `# 广播地址\nadvertise_addr=${advertiseAddr}\n`;
-
-            const tos = document.getElementById('sn-tos').value;
-            if (tos) config += `# 服务类型\ntos=${tos}\n`;
-
-            const registerTtl = document.getElementById('sn-register-ttl').value;
-            if (registerTtl) config += `# 注册包TTL\nregister_pkt_ttl=${registerTtl}\n`;
-
-            const pmtuDiscovery = document.getElementById('sn-pmtu-discovery').checked;
-            if (pmtuDiscovery) config += `# 启用PMTU发现\npmtu_discovery=${pmtuDiscovery}\n`;
-
-            config += '\n';
-
-            // Peers section (supernode)
-            config += '# 联邦对等节点列表\n';
             const peerInputs = document.querySelectorAll('#sn-peer-list input');
             peerInputs.forEach(input => {
                 const value = input.value.trim();
-                if (value) config += `# 对等supernode地址:端口\npeer=${value}\n`;
+                if (value) supernodeContent += `# 对等supernode地址:端口\npeer=${value}\n`;
             });
 
-            if (peerInputs.length > 0) config += '\n';
+            const autoIpMin = document.getElementById('sn-auto-ip-min').value;
+            if (autoIpMin) supernodeContent += `# 自动IP分配范围起始\nauto_ip_min=${autoIpMin}\n`;
+
+            const autoIpMax = document.getElementById('sn-auto-ip-max').value;
+            if (autoIpMax) supernodeContent += `# 自动IP分配范围结束\nauto_ip_max=${autoIpMax}\n`;
+
+            const communityFile = document.getElementById('sn-community-file').value;
+            if (communityFile) supernodeContent += `# 社区列表文件路径\ncommunity_file=${communityFile}\n`;
+
+            const version = document.getElementById('sn-version').value;
+            if (version) supernodeContent += `# 版本字符串\nversion=${version}\n`;
+
+            if (supernodeContent) {
+                config += '# Supernode服务器设置\n[supernode]\n' + supernodeContent + '\n';
+            }
+
+            // Connection section  
+            const bind = document.getElementById('sn-bind').value;
+            // 检查是否为默认值 (0.0.0.0:7654 或 ::7654 或 7654)  
+            if (bind && bind !== '0.0.0.0:7654' && bind !== '::7654' && bind !== '7654') {
+                connectionContent += `# 监听地址:端口 (主服务端口)\nbind=${bind}\n`;
+            }
+
+            const advertiseAddr = document.getElementById('sn-advertise-addr').value;
+            if (advertiseAddr) connectionContent += `# 广播地址\nadvertise_addr=${advertiseAddr}\n`;
+
+            const tos = document.getElementById('sn-tos').value;
+            if (tos) connectionContent += `# 服务类型\ntos=${tos}\n`;
+
+            const registerTtl = document.getElementById('sn-register-ttl').value;
+            if (registerTtl) connectionContent += `# 注册包TTL\nregister_pkt_ttl=${registerTtl}\n`;
+
+            const pmtuDiscovery = document.getElementById('sn-pmtu-discovery').checked;
+            if (pmtuDiscovery) connectionContent += `# 启用PMTU发现\npmtu_discovery=${pmtuDiscovery}\n`;
+
+            if (connectionContent) {
+                config += '# 网络连接设置\n[connection]\n' + connectionContent + '\n';
+            }
 
             // Management section  
             const mgmtPort = document.getElementById('sn-mgmt-port').value;
             const mgmtPassword = document.getElementById('sn-mgmt-password').value;
 
-            if (mgmtPort || mgmtPassword) {
-                config += '# 管理接口设置\n[management]\n';
-                if (mgmtPort) config += `# 管理端口\nport=${mgmtPort}\n`;
-                if (mgmtPassword) config += `# 管理密码\npassword=${mgmtPassword}\n`;
-                config += '\n';
+            if (mgmtPort && mgmtPort !== '5645') managementContent += `# 管理端口\nport=${mgmtPort}\n`;
+            if (mgmtPassword && mgmtPassword !== 'n3n') managementContent += `# 管理密码\npassword=${mgmtPassword}\n`;
+
+            if (managementContent) {
+                config += '# 管理接口设置\n[management]\n' + managementContent + '\n';
             }
 
             // Daemon section  
@@ -1283,12 +1305,12 @@
             const groupid = document.getElementById('sn-groupid').value;
             const background = document.getElementById('sn-background').checked;
 
-            if (userid || groupid || background) {
-                config += '# 守护进程设置\n[daemon]\n';
-                if (userid) config += `# 运行用户ID\nuserid=${userid}\n`;
-                if (groupid) config += `# 运行组ID\ngroupid=${groupid}\n`;
-                config += `# 后台运行\nbackground=${background}\n`;
-                config += '\n';
+            if (userid) daemonContent += `# 运行用户ID\nuserid=${userid}\n`;
+            if (groupid) daemonContent += `# 运行组ID\ngroupid=${groupid}\n`;
+            if (background) daemonContent += `# 后台运行\nbackground=${background}\n`;
+
+            if (daemonContent) {
+                config += '# 守护进程设置\n[daemon]\n' + daemonContent + '\n';
             }
 
             // Filter section  
@@ -1296,25 +1318,28 @@
             const allowRouting = document.getElementById('sn-allow-routing').checked;
             const filterRules = document.getElementById('sn-filter-rules').value;
 
-            if (allowMulticast || allowRouting || filterRules) {
-                config += '# 流量过滤设置\n[filter]\n';
-                config += `# 允许多播流量\nallow_multicast=${allowMulticast}\n`;
-                config += `# 允许路由转发\nallow_routing=${allowRouting}\n`;
-                if (filterRules) {
-                    config += '# 过滤规则列表\n';
-                    filterRules.split('\n').forEach(rule => {
-                        rule = rule.trim();
-                        if (rule) config += `# 流量过滤规则\nrule=${rule}\n`;
-                    });
-                }
-                config += '\n';
+            if (allowMulticast) filterContent += `# 允许多播流量\nallow_multicast=${allowMulticast}\n`;
+            if (allowRouting) filterContent += `# 允许路由转发\nallow_routing=${allowRouting}\n`;
+            if (filterRules) {
+                filterContent += '# 过滤规则列表\n';
+                filterRules.split('\n').forEach(rule => {
+                    rule = rule.trim();
+                    if (rule) filterContent += `# 流量过滤规则\nrule=${rule}\n`;
+                });
+            }
+
+            if (filterContent) {
+                config += '# 流量过滤设置\n[filter]\n' + filterContent + '\n';
             }
 
             // Logging section  
             const verbose = document.getElementById('sn-logging-verbose').value;
-            if (verbose !== '0') {
-                config += '# 日志设置\n[logging]\n';
-                config += `# 日志级别 (0=错误, 1=警告, 2=信息, 3=调试, 4=详细)\nverbose=${verbose}\n`;
+            if (verbose !== '2') {
+                loggingContent += `# 日志级别 (0=错误, 1=警告, 2=信息, 3=调试, 4=详细)\nverbose=${verbose}\n`;
+            }
+
+            if (loggingContent) {
+                config += '# 日志设置\n[logging]\n' + loggingContent + '\n';
             }
 
             return config;
@@ -1398,6 +1423,28 @@
 
         // Add input validation  
         document.addEventListener('DOMContentLoaded', function () {
+
+            // 初始化时检查地址模式  
+            const addressMode = document.getElementById('edge-tuntap-mode').value;
+            const addressField = document.getElementById('edge-tuntap-address');
+            const addressGroup = addressField.closest('.form-group');
+
+            if (addressMode === 'dhcp' || addressMode === 'auto') {
+                addressGroup.style.display = 'none';
+            }
+
+            // 地址模式切换监听  
+            document.getElementById('edge-tuntap-mode').addEventListener('change', function (e) {
+                const addressField = document.getElementById('edge-tuntap-address');
+                const addressGroup = addressField.closest('.form-group');
+
+                if (e.target.value === 'dhcp' || e.target.value === 'auto') {
+                    addressGroup.style.display = 'none';
+                } else {
+                    addressGroup.style.display = 'block';
+                }
+            });
+
             // MAC地址验证 - 统一处理客户端和服务端  
             const macInputs = document.querySelectorAll('input[placeholder*="MAC"], input[placeholder*="DE:AD"], input[placeholder*="00:00"]');
             macInputs.forEach(input => {

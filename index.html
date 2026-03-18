@@ -507,7 +507,7 @@
                             <option value="Twofish">Twofish</option>
                             <option value="ChaCha20">ChaCha20</option>
                             <option value="Speck">Speck</option>
-                            <option value="NULL">NULL</option>
+                            <option value="null">不加密</option>
                         </select>
                     </div>
                     <div class="form-group">
@@ -1071,10 +1071,17 @@
             if (communityName) communityContent += `# 社区名称，同一社区的节点才能加入同一局域网\nname=${communityName}\n`;
 
             const communityKey = document.getElementById('edge-community-key').value;
+            const cipher = document.getElementById('edge-community-cipher').value;
+
+            // 处理 加密密钥key  
             if (communityKey) {
                 communityContent += `# 加密密钥，同一社区必须使用相同密钥\nkey=${communityKey}\n`;
-                const cipher = document.getElementById('edge-community-cipher').value;
-                if (cipher !== 'AES') communityContent += `# 加密算法\ncipher=${cipher}\n`;
+            }
+
+            // 处理 加密算法cipher  
+            if (cipher && cipher !== 'AES') {
+                // 只有非AES且非空时才输出  
+                communityContent += `# 加密算法 (null为不加密，明文传输，但是配置了key的话程序会自动切换到AES)\ncipher=${cipher}\n`;
             }
 
             const headerEncryption = document.getElementById('edge-header-encryption').checked;

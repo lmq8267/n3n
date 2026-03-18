@@ -151,7 +151,7 @@ test       -> 测试相关命令
 -V        --version
 ```
 
-#### n3n-supernode
+#### n3n-portfwd
 
 ```
 ./n3n-portfwd

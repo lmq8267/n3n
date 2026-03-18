@@ -1445,6 +1445,8 @@ jobs:
            > ### ![](https://img.shields.io/badge/%E7%BC%96%E8%AF%91%E6%97%B6%E9%97%B4-${{ env.build_time }}-8267?logo=github&labelColor=%E9%A1%BB)![](https://img.shields.io/github/downloads/${{ github.repository }}/${{ env.tag }}/total?label=%E4%B8%8B%E8%BD%BD%E6%AC%A1%E6%95%B0&logo=github)
 
            ${{ needs.summary.outputs.table }}
+
+           [配置文件在线生成](https://lmq8267.github.io/n3n)
            
           tag_name: ${{ env.tag }}
           files: release_tar/*.tar.gz

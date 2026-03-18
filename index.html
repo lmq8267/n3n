@@ -1053,7 +1053,7 @@
         }
 
         function generateEdgeConfig() {
-            let config = '# n3n Edge 配置文件\n# 启动方式示例： ./n3n-edge start /路径/配置文件.conf';
+            let config = '# n3n Edge 配置文件\n# 启动方式示例： ./n3n-edge start /路径/配置文件.conf\n';
             config += '# 生成时间: ' + new Date().toLocaleString() + '\n\n';
 
             // 收集所有section的配置内容  
@@ -1231,7 +1231,7 @@
         }
 
         function generateSupernodeConfig() {
-            let config = '# n3n Supernode 配置文件\n# 启动方式示例： ./n3n-supernode start /路径/配置文件.con';
+            let config = '# n3n Supernode 配置文件\n# 启动方式示例： ./n3n-supernode start /路径/配置文件.conf\n';
             config += '# 生成时间: ' + new Date().toLocaleString() + '\n\n';
 
             let supernodeContent = '';

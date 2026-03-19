@@ -245,6 +245,7 @@ jobs:
           os: ubuntu-latest
           arch: x86-64
           version: '7.8'
+          pkg_arch: amd64
           URL: x86_64-openbsd
           OPENSSL_TARGET: BSD-x86_64
 
@@ -253,6 +254,7 @@ jobs:
           os: ubuntu-latest
           arch: arm64
           version: '7.8'
+          pkg_arch: aarch64
           URL: arm64-openbsd
           OPENSSL_TARGET: BSD-aarch64
         
@@ -697,6 +699,7 @@ jobs:
          cpu_count: 4
          run: |
               # 软件库版本详情查看 https://cdn.openbsd.org/pub/OpenBSD/版本/packages
+              export PKG_PATH=https://cdn.openbsd.org/pub/OpenBSD/${{ matrix.version }}/packages/${{ matrix.pkg_arch }}/
               sudo pkg_add gmake cmake autoconf-2.71p0 automake-1.18 libtool wget python-3.12.11 curl git jq bash bison
               export AUTOCONF_VERSION=2.71
               export AUTOMAKE_VERSION=1.18

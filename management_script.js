@@ -23,7 +23,7 @@ function headerToChinese(header) {
         'sockaddr': '连接地址',  
         'uptime': '运行时间',  
         'mode': '模式',  
-        'ip4addr': 'IP地址',  
+        'ip4addr': '虚拟IP',  
         'desc': '描述',  
         'type': '类型',  
         'tx_pkt': '发送包',  
@@ -66,7 +66,7 @@ function valueToChinese(key, value) {
             2: '2️⃣ 等待中'  
         },  
         'community': {  
-            '-/-': '-/-'  
+            '-/-': '联邦社区'  
         }  
     };  
   
@@ -132,7 +132,7 @@ function result2verbose(id, unused, data) {
 }  
   
 function rows2keyvalue(id, keys, data) {  
-    let s = "<table class='modern-table'>"  
+    let s = "<div class='table-container'><table class='modern-table'>"
     data.forEach((row) => {  
         keys.forEach((key) => {  
             if (key in row) {  
@@ -148,7 +148,7 @@ function rows2keyvalue(id, keys, data) {
 }  
   
 function rows2keyvalueall(id, unused, data) {  
-    let s = "<table class='modern-table'>"  
+    let s = "<div class='table-container'><table class='modern-table'>"
     Object.keys(data).forEach((key) => {  
         let value = data[key];  
         // 检查是否为时间戳字段并格式化  
@@ -165,7 +165,7 @@ function rows2keyvalueall(id, unused, data) {
 }  
   
 function rows2table(id, columns, data) {  
-    let s = "<table class='modern-table'>"  
+    let s = "<div class='table-container'><table class='modern-table'>"
     s += "<thead><tr>"  
     columns.forEach((col) => {  
         s += "<th>" + headerToChinese(col) + "</th>"  
@@ -203,7 +203,13 @@ function do_jsonrpc(url, method, params, id, handler, handler_param) {
     }  
     jsonrpc_id++;  
   
-    fetch(url, {method:'POST', body: JSON.stringify(body)})  
+    fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(body)
+    })
     .then(function (response) {  
         if (!response.ok) {  
             throw new Error('Fetch got ' + response.status)  

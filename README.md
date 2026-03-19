@@ -6,6 +6,10 @@
 
 [在线配置文件生成](https://lmq8267.github.io/n3n) 
 
+由于官方是使用py版的`n3nctl`，嵌入式设备没有py环境的，可以下载使用[sh版n3nctl管理脚本](https://github.com/lmq8267/n3n/raw/refs/heads/main/n3nctl)
+<img width="674" height="664" alt="image" src="https://github.com/user-attachments/assets/3145c513-858a-4e72-b5ff-9fd842869e31" />
+
+
 ---- 
 
 ### 帮助信息：

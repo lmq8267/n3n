@@ -181,6 +181,17 @@
             gap: 10px;
         }
 
+        /* 添加表格容器样式 */
+        .table-container {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            /* iOS 平滑滚动 */
+            margin: 0 -10px;
+            /* 抵消容器padding，让滚动条贴近屏幕边缘 */
+            padding: 0 10px;
+            /* 保持内容对齐 */
+        }
+
         /* 现代化表格样式 */
         .modern-table {
             width: 100%;
@@ -191,6 +202,8 @@
             overflow: hidden;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07);
             border: 1px solid var(--border-color);
+            min-width: 600px;
+            /* 设置最小宽度确保表格可读性 */
         }
 
         .modern-table th,
@@ -403,17 +416,43 @@
                 grid-template-columns: 1fr;
             }
 
+            .btn {
+                flex: 1;
+                width: auto;
+                max-width: 180px;
+                white-space: nowrap;
+                font-size: 0.9rem;
+                padding: 10px 16px;
+                justify-content: center;
+                text-align: center;
+            }
+
+            /* 强制按钮水平排列 */
             .btn-group {
-                flex-direction: column;
+                display: flex !important;
+                flex-direction: row !important;
+                flex-wrap: wrap;
+                justify-content: center;
+                gap: 8px;
             }
 
             .modern-table {
-                font-size: 0.9rem;
+                font-size: 0.85rem;
+                min-width: auto;
+                width: 100%;
             }
 
             .modern-table th,
             .modern-table td {
-                padding: 8px;
+                padding: 6px 4px;
+                font-size: 0.8rem;
+            }
+
+            .table-container {
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+                margin: 0 -10px;
+                padding: 0 10px;
             }
         }
     </style>
@@ -554,7 +593,16 @@
             if (event.target == modal) {
                 closeModal();
             }
-        }   
+        }
+
+        window.onload = function () {
+            try {
+                refresh_job();
+                refresh_setup(10000);
+            } catch (e) {
+                console.error("初始化失败:", e);
+            }
+        };
     </script>
 </body>
 

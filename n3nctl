@@ -87,7 +87,7 @@ http_request() {
         else  
             response=$(wget -q -O - --post-data="$data" "$URL" 2>/dev/null)  
         fi  
-    elif type wget >/dev/null 2>&1; then    
+    elif type curl >/dev/null 2>&1; then    
         if [ -n "$auth_header" ]; then  
             response=$(curl -s -X POST -H "$auth_header" -d "$data" "$URL" 2>/dev/null)  
         else  

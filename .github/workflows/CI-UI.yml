@@ -1,0 +1,1503 @@
+name: 🎯 编译N3N-多平台架构，并美化管理UI 🎯
+
+on:
+  # 手动触发执行
+  workflow_dispatch:
+    inputs:
+
+      repo_ref:
+        description: |
+          🌿 编译的 n42n/n3n 仓库分支或版本号
+          【示例: main / dev / 3.4.4】
+          【默认：主分支 main】
+        required: true
+        default: "main"
+
+      rel:
+        description: |
+          📦 编译完成后的 Release 发布方式
+
+          【none：
+          不发布 Release，仅编译】
+
+          【release：
+          发布正式稳定版 Release】
+
+          【pr：
+          发布 PR 测试版 Release】
+        required: true
+        default: release
+        type: choice
+        options:
+          - none
+          - release
+          - pr
+
+      tag:
+        description: |
+          🏷️ 指定 Release 版本号
+
+          【示例:
+          v1.0.0 或
+          v2.3.1 或
+          beta-20240310】
+
+          【留空将自动使用当前 commit 哈希】
+        required: false
+        default: ""
+
+      upx:
+        description: |
+          🗜️ 启用 UPX 二进制压缩
+
+          【将编译后的程序进行压缩以减小体积】
+
+          【优点:
+          1.程序体积更小
+          2.在线下载更快】
+
+          【注意:
+          ⚠ 会增加程序运行时的内存占用】
+        required: true
+        default: true
+        type: boolean
+
+      enable_zstd:
+        description: |
+          🗜️ 启用 ZSTD 压缩支持
+          【依赖: libzstd-dev 库】
+          【作用: 提供高性能数据压缩，提高传输效率】
+          【平台: 🌍 全平台可用】
+        required: false
+        default: true
+        type: boolean
+
+      enable_openssl:
+        description: |
+          🔐 启用 OpenSSL 加密支持
+          【依赖: libssl-dev 库】
+          【作用: 提供 TLS/加密算法支持，用于安全通信】
+          【平台: 🌍 全平台可用】
+        required: false
+        default: true
+        type: boolean
+
+      enable_miniupnp:
+        description: |
+          🌐 启用 miniupnp NAT 穿透
+          【依赖: libminiupnpc-dev 库】
+          【作用: 自动向路由器申请端口映射】
+          【平台: 🌍 全平台可用】
+        required: false
+        default: true
+        type: boolean
+
+      enable_natpmp:
+        description: |
+          📡 启用 NAT-PMP 端口映射
+          【依赖: libnatpmp-dev 库】
+          【作用: 自动端口映射协议】
+          【平台: 🌍 全平台可用】
+        required: false
+        default: true
+        type: boolean
+
+      enable_pcap:
+        description: |
+          📦 启用 PCAP 抓包接口
+          【依赖: libpcap-dev 库】
+          【作用: 提供底层网络数据包捕获能力】
+          【平台: 🐧 Unix-like (Linux/macOS/BSD) 可用】
+        required: false
+        default: true
+        type: boolean
+
+      enable_libcap:
+        description: |
+          🛡️ 启用 Linux Capability 权限
+          【依赖: libcap-dev 库】
+          【作用: 允许程序使用网络权限而不需要 root】
+          【平台: 🐧 Linux 可用】
+        required: false
+        default: false
+        type: boolean
+
+      enable_pthread:
+        description: |
+          🧵 启用 POSIX 线程支持
+          【依赖: pthread (系统内置)】
+          【作用: 提供多线程并发能力】
+          【平台: 🌍 全平台可用】
+        required: false
+        default: true
+        type: boolean
+        
+# 流程运行时停止之前正在运行的流程 保证同时只运行一个   
+concurrency:
+  group: n3n-build-${{ github.event.inputs.repo_ref }}
+  cancel-in-progress: true
+        
+# 全局环境变量
+env:
+  tag: "${{ github.event.inputs.tag }}"
+  rel: "${{ github.event.inputs.rel }}"
+  TZ: Asia/Shanghai
+
+# 仓库操作权限
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  build:
+    name: 🛠 编译 ${{ matrix.target }} 平台架构
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+        # Linux
+        - target: aarch64-linux
+          os: ubuntu-latest
+          URL: aarch64-linux-musl
+          OPENSSL_TARGET: linux-aarch64
+          
+        - target: x86_64-linux
+          os: ubuntu-latest
+          URL: x86_64-linux-musl
+          OPENSSL_TARGET: linux-x86_64
+          
+        - target: i686-linux
+          os: ubuntu-latest
+          URL: i686-linux-musl
+          OPENSSL_TARGET: linux-generic32
+          
+        - target: armv7-linux-eabihf
+          os: ubuntu-latest
+          URL: armv7l-linux-musleabihf
+          OPENSSL_TARGET: linux-armv4
+          
+        - target: armv7-linux-eabi
+          os: ubuntu-latest
+          URL: armv7m-linux-musleabi
+          OPENSSL_TARGET: linux-armv4
+          
+        - target: arm-linux-eabihf
+          os: ubuntu-latest
+          URL: arm-linux-musleabihf
+          OPENSSL_TARGET: linux-armv4
+          
+        - target: arm-linux-eabi
+          os: ubuntu-latest
+          URL: arm-linux-musleabi
+          OPENSSL_TARGET: linux-armv4
+          
+        - target: mipsel-linux
+          os: ubuntu-latest
+          URL: mipsel-linux-muslsf
+          OPENSSL_TARGET: linux-mips32
+          
+        - target: mips-linux
+          os: ubuntu-latest
+          URL: mips-linux-muslsf
+          OPENSSL_TARGET: linux-mips32
+          
+        - target: mips64-linux
+          os: ubuntu-latest
+          URL: mips64-linux-musl
+          OPENSSL_TARGET: linux64-mips64
+          
+        - target: s390x-linux
+          os: ubuntu-latest
+          URL: s390x-linux-musl
+          OPENSSL_TARGET: "linux64-s390x no-asm"
+          
+        - target: loongarch64-linux
+          os: ubuntu-latest
+          URL: loongarch64-linux-musl
+          OPENSSL_TARGET: linux64-loongarch64
+
+        - target: riscv32-linux
+          os: ubuntu-latest
+          URL: riscv32-linux-musl
+          OPENSSL_TARGET: linux32-riscv32
+
+        - target: riscv64-linux
+          os: ubuntu-latest
+          URL: riscv64-linux-musl
+          OPENSSL_TARGET: linux64-riscv64
+
+        # BSD 其中arm64系列全功能版构建时间最长
+        - target: x86_64-freebsd
+          os: ubuntu-latest
+          arch: x86-64
+          version: '15.0'
+          URL: x86_64-freebsd
+          OPENSSL_TARGET: BSD-x86_64
+          
+        - target: arm64-freebsd
+          os: ubuntu-latest
+          arch: arm64
+          version: '15.0'
+          URL: arm64-freebsd
+          OPENSSL_TARGET: BSD-aarch64
+
+        - target: x86_64-openbsd
+          os: ubuntu-latest
+          arch: x86-64
+          version: '7.8'
+          URL: x86_64-openbsd
+          OPENSSL_TARGET: BSD-x86_64
+
+        # arm64-openbsd 全功能版构建约需2小时35分
+        - target: arm64-openbsd
+          os: ubuntu-latest
+          arch: arm64
+          version: '7.8'
+          URL: arm64-openbsd
+          OPENSSL_TARGET: BSD-aarch64
+        
+        - target: x86_64-netbsd
+          os: ubuntu-latest
+          arch: x86-64
+          version: '10.1'
+          pkg_arch: x86_64
+          URL: x86_64-netbsd
+          OPENSSL_TARGET: BSD-x86_64
+
+        - target: arm64-netbsd
+          os: ubuntu-latest
+          arch: arm64
+          version: '10.1'
+          pkg_arch: aarch64
+          URL: arm64-netbsd
+          OPENSSL_TARGET: BSD-aarch64
+
+        # Mac
+        - target: x86_64-macos
+          os: macos-latest
+          URL: x86_64-apple-darwin
+          OPENSSL_TARGET: darwin64-x86_64-cc
+          
+        - target: arm64-macos
+          os: macos-latest
+          URL: arm64-apple-darwin
+          OPENSSL_TARGET: darwin64-arm64-cc
+
+        # Windows
+        - target: x86_64-windows
+          os: ubuntu-latest
+          URL: x86_64-w64-mingw32
+          OPENSSL_TARGET: "mingw64 no-quic"
+          
+        - target: i686-windows
+          os: ubuntu-latest
+          MSVC_ARCH: x86
+          URL: i686-w64-mingw32
+          OPENSSL_TARGET: "mingw no-quic"
+          
+        - target: arm64-windows
+          os: ubuntu-latest
+          URL: aarch64-w64-mingw32
+          OPENSSL_TARGET: "mingwarm64 no-quic"
+
+    runs-on: ${{ matrix.os }}
+    env:
+      URL: ${{ matrix.URL }}
+      target: ${{ matrix.target }}
+      OPENSSL_TARGET: ${{ matrix.OPENSSL_TARGET }}
+    steps:
+     - name: 📬 检出代码
+       uses: actions/checkout@v6
+       with:
+         repository: 'n42n/n3n'
+         ref: "${{ github.event.inputs.repo_ref }}"
+         fetch-depth: 0
+         submodules: recursive
+
+     - name: 📥 下载并替换 management 文件
+       shell: bash
+       run: |
+        echo "开始下载管理界面文件..."
+
+        # 下载文件
+        curl -L -o src/management_index.html https://github.com/cn1095/n3n/raw/refs/heads/main/management_index.html
+        curl -L -o src/management_script.js https://github.com/cn1095/n3n/raw/refs/heads/main/management_script.js
+
+        echo "文件下载完成，已替换管理界面UI"
+
+        echo "开始修改管理端口仅监听v6为双栈..."
+
+        EFILE="src/edge_utils.c"
+        SFILE="apps/n3n-supernode.c"
+
+        echo "处理客户端 $EFILE"
+        sed -i.bak 's/conf\.mgmt_port, false/conf.mgmt_port, true/g' "$EFILE"
+
+        echo "处理服务器 $SFILE"
+        sed -i.bak 's/conf\.mgmt_port, false/conf.mgmt_port, true/g' "$SFILE"
+
+        echo "修改完成"
+        diff "$EFILE.bak" "$EFILE" || true
+        diff "$SFILE.bak" "$SFILE" || true
+         
+     - name: ⛏ 编译 FreeBSD N3N
+       if: ${{ endsWith(matrix.target, 'freebsd') }}
+       uses: cross-platform-actions/action@master
+       with:
+         operating_system: freebsd
+         architecture: ${{ matrix.arch }}
+         version: ${{ matrix.version }}
+         shell: bash
+         memory: 5G
+         cpu_count: 4
+         run: |
+              sudo pkg install -y gmake cmake autoconf automake libtool pkgconf wget curl git-tiny python3 jq bash
+              export CC="clang"
+              export CXX="clang++"
+              export TZ='Asia/Shanghai'
+              # 你可以在这里设置一些编译选项 如 -DSPECK_ARM_NEON
+              export CFLAGS="-ffunction-sections -fdata-sections -O2 -w $CFLAGS -I/usr/local/include -I$(pwd)/thirdparty -static"
+              export LDFLAGS="-s -Wl,--gc-sections $LDFLAGS -static"
+              # 构建配置参数  
+              CONFIGURE_FLAGS=""
+              MAKE_FLAGS=""
+              if [ "${{ github.event.inputs.enable_zstd }}" = "true" ]; then  
+                 CONFIGURE_FLAGS="$CONFIGURE_FLAGS --with-zstd"
+                 curl -Lk -o zstd-1.5.7.tar.gz https://github.com/facebook/zstd/releases/download/v1.5.7/zstd-1.5.7.tar.gz || wget https://github.com/facebook/zstd/releases/download/v1.5.7/zstd-1.5.7.tar.gz
+                 tar xf zstd-1.5.7.tar.gz --exclude '*/tests/*'
+                 echo "######################编译zstd依赖库########################"
+                 cd zstd-1.5.7/build/cmake
+                 mkdir -p build
+                 cd build
+                 cmake .. \
+                   -DCMAKE_BUILD_TYPE=Release \
+                   -DZSTD_BUILD_PROGRAMS=OFF \
+                   -DZSTD_BUILD_SHARED=OFF \
+                   -DZSTD_BUILD_STATIC=ON \
+                   -DCMAKE_EXE_LINKER_FLAGS="-static" \
+                   -DCMAKE_INSTALL_PREFIX=${GITHUB_WORKSPACE}/thirdparty/zstd \
+                   -DCMAKE_C_COMPILER=${CC:-clang} \
+                   -DCMAKE_CXX_COMPILER=${CXX:-clang++}
+                 cmake --build . --config Release --parallel
+                 cmake --install .
+                 cd ${GITHUB_WORKSPACE}
+                 export CFLAGS="$CFLAGS -I${GITHUB_WORKSPACE}/thirdparty/zstd/include"
+                 export LDFLAGS="$LDFLAGS -L${GITHUB_WORKSPACE}/thirdparty/zstd/lib"
+              fi
+
+              if [ "${{ github.event.inputs.enable_openssl }}" = "true" ]; then  
+                 CONFIGURE_FLAGS="$CONFIGURE_FLAGS --with-openssl"
+                 curl -Lk -o openssl-3.6.1.tar.gz https://www.openssl.org/source/openssl-3.6.1.tar.gz || wget https://www.openssl.org/source/openssl-3.6.1.tar.gz
+                 tar xf openssl-3.6.1.tar.gz --exclude='*/tests/*'
+                 echo "######################编译openssl依赖库########################"
+                 cd openssl-3.6.1
+                 ./Configure ${{ matrix.OPENSSL_TARGET }} \
+                   no-shared no-zlib no-tests --prefix=${GITHUB_WORKSPACE}/thirdparty/openssl \
+                   LDFLAGS="${LDFLAGS}" CFLAGS="${CFLAGS}"
+              
+                 gmake -j$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 4)
+                 gmake install_sw
+                 OPENSSL_DIR=${GITHUB_WORKSPACE}/thirdparty/openssl
+                 cd ${GITHUB_WORKSPACE}
+                 export CFLAGS="$CFLAGS -I${GITHUB_WORKSPACE}/thirdparty/openssl/include"
+                 export LDFLAGS="$LDFLAGS -L${GITHUB_WORKSPACE}/thirdparty/openssl/lib"
+              fi
+
+              if [ "${{ github.event.inputs.enable_miniupnp }}" = "true" ]; then  
+                 MAKE_FLAGS="$MAKE_FLAGS THIRDPARTY_MINIUPNPC=1"
+                 export CFLAGS="$CFLAGS -I$(pwd)/thirdparty/miniupnp"
+                 cp -r "$(pwd)/thirdparty/miniupnp/miniupnpc/include/." "$(pwd)/thirdparty/miniupnp/miniupnpc/"
+                 echo "######################编译miniupnp依赖库########################"
+                 cmake -S thirdparty/miniupnp/miniupnpc -B build-miniupnpc \
+                   -DCMAKE_C_COMPILER=${CC} \
+                   -DUPNPC_BUILD_SHARED=OFF \
+                   -DUPNPC_BUILD_STATIC=ON \
+                   -DUPNPC_BUILD_SAMPLE=OFF \
+                   -DUPNPC_BUILD_TESTS=OFF \
+                   -DCMAKE_POLICY_VERSION_MINIMUM=3.18 \
+                   -DCMAKE_INSTALL_PREFIX=$(pwd)/thirdparty/miniupnp/miniupnpc/build
+              
+                 cmake --build build-miniupnpc -j$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 4)
+                 cmake --install build-miniupnpc
+                 # 已经添加这个库 就明确定义已经集成
+                 export CFLAGS="$CFLAGS -DHAVE_LIBMINIUPNPC=1"
+                 export CFLAGS="$CFLAGS -I${GITHUB_WORKSPACE}/thirdparty/miniupnp/miniupnpc"
+                 export LDFLAGS="$LDFLAGS -L$(pwd)/thirdparty/miniupnp/miniupnpc/build/lib -lminiupnpc"
+              fi
+
+              if [ "${{ github.event.inputs.enable_natpmp }}" = "true" ]; then  
+                 MAKE_FLAGS="$MAKE_FLAGS THIRDPARTY_LIBNATPMP=1"
+                 echo "######################编译libnatpmp依赖库########################"
+                 cmake -S "$(pwd)/thirdparty/libnatpmp" -B "$(pwd)/thirdparty/libnatpmp" \
+                   -DCMAKE_C_COMPILER=${CC} \
+                   -DCMAKE_INSTALL_PREFIX="$(pwd)/thirdparty/libnatpmp" \
+                   -DBUILD_SHARED_LIBS=OFF -DCMAKE_POLICY_VERSION_MINIMUM=3.18
+              
+                 cmake --build "$(pwd)/thirdparty/libnatpmp" --target natpmp -j$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 4)
+                 cmake --install "$(pwd)/thirdparty/libnatpmp"
+                 ls -la thirdparty/libnatpmp/libnatpmp.a || echo "libnatpmp.a库文件不存在"
+                 # 更新 LDFLAGS / CFLAGS 以便后续链接使用
+                 export LDLIBS_EXTRA="$LDLIBS_EXTRA -lnatpmp"
+                 LDFLAGS="$LDFLAGS -L$(pwd)/thirdparty/libnatpmp"
+                 export CFLAGS="$CFLAGS -I$(pwd)/thirdparty/libnatpmp -DHAVE_LIBNATPMP=1"
+                 export CFLAGS="$CFLAGS -I${GITHUB_WORKSPACE}/thirdparty/libnatpmp/include"
+                 export LDFLAGS="$LDFLAGS -L${GITHUB_WORKSPACE}/thirdparty/libnatpmp/lib -lnatpmp"
+              fi
+
+              if [ "${{ github.event.inputs.enable_pcap }}" = "true" ]; then  
+                 CONFIGURE_FLAGS="$CONFIGURE_FLAGS --enable-pcap"
+                 wget https://www.tcpdump.org/release/libpcap-1.10.6.tar.gz
+                 tar xzf libpcap-1.10.6.tar.gz
+                 echo "######################编译libpcap依赖库########################"
+                 cd libpcap-1.10.6
+                 ./configure --disable-shared --prefix=${GITHUB_WORKSPACE}/thirdparty/pcap
+              
+                 gmake -j$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 4)
+                 gmake install
+                 cd ${GITHUB_WORKSPACE}
+                 export PKG_CONFIG_PATH="${GITHUB_WORKSPACE}/thirdparty/pcap/lib/pkgconfig:${PKG_CONFIG_PATH}"
+                 # 获取 libpcap 完整的静态链接标志，包含所有私有依赖（如 FreeBSD 15 上的 -libverbs）
+                 PCAP_STATIC_LIBS=$(pkg-config --libs --static libpcap 2>/dev/null || echo "-lpcap")
+                 echo "libpcap完整依赖库：$PCAP_STATIC_LIBS"
+                 export CFLAGS="$CFLAGS -I${GITHUB_WORKSPACE}/thirdparty/pcap/include"
+                 export LDFLAGS="$LDFLAGS $PCAP_STATIC_LIBS"
+              fi
+
+              if [ "${{ github.event.inputs.enable_libcap }}" = "true" ]; then
+                 echo ""
+                 echo "# BSD 内核不支持libcap #"
+                 echo ""
+              fi
+              
+              if [ "${{ github.event.inputs.enable_pthread }}" = "true" ]; then
+                 CONFIGURE_FLAGS="$CONFIGURE_FLAGS --enable-pthread"
+                 export LDFLAGS="$LDFLAGS -lpthread"
+              fi
+
+              echo "########### 编译 N3N ###########"
+              # 因src/n2n_port_mapping.c缺少头文件定义 stdint.h stddef.h n2n.h n2n_define.h 这里手动补上
+              tmpfile=$(mktemp)
+              printf '#include <stddef.h>\n#include <n3n/logging.h>\n#include "n2n.h"\n#include "n2n_define.h"\n' > $tmpfile
+              cat src/n2n_port_mapping.c >> $tmpfile
+              mv $tmpfile src/n2n_port_mapping.c
+              ./autogen.sh 
+              ./configure --with-rundir=/tmp  $CONFIGURE_FLAGS PREFIX=. CC="${CC}" LDFLAGS="${LDFLAGS}" CFLAGS="${CFLAGS}"
+              gmake -j$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 4) PREFIX=. $MAKE_FLAGS
+              ls -la apps/
+              gmake install \
+               PREFIX=. $MAKE_FLAGS \
+               CONFIG_BINDIR=./bin \
+               CONFIG_SBINDIR=./bin \
+               ETCDIR=./bin \
+               CONFIG_DOCDIR=./bin \
+               CONFIG_MANDIR=./bin \
+               CONFIG_SYSTEMDDIR=./bin
+
+              # 复制示例配置文件进去
+              cp doc/edge.conf.sample ./bin/ 2>/dev/null || true
+              cp doc/supernode.conf.sample ./bin/ 2>/dev/null || true
+          
+              echo "### 编译 tools ####"
+              gmake tools LDFLAGS="${LDFLAGS} -L$(pwd)/src -L$(pwd)/libs/connslot -lconnslot" LDLIBS_EXTRA="${LDLIBS_EXTRA}" LDLIBS_LOCAL="$LDLIBS_LOCAL -lconnslot" CFLAGS="${CFLAGS} -I${GITHUB_WORKSPACE}/include" 
+           
+              echo "### 安装 tools ####"
+              gmake -C tools install CONFIG_SBINDIR=$(pwd)/bin INSTALL=install INSTALL_PROG="install -m 755" LDFLAGS="${LDFLAGS} -L$(pwd)/src -L$(pwd)/libs/connslot -lconnslot" LDLIBS_LOCAL="$LDLIBS_LOCAL -lconnslot" CFLAGS="${CFLAGS} -I${GITHUB_WORKSPACE}/include"
+              ls -la tools/
+              
+              file bin/n3n-edge || true
+              ldd bin/n3n-edge || true
+              ldd bin/n3n-portfwd || true
+              bin/n3n-edge -h
+
+     - name: ⛏ 编译 NetBSD N3N
+       if: ${{ endsWith(matrix.target, 'netbsd') }}
+       uses: cross-platform-actions/action@master
+       with:
+         operating_system: netbsd
+         architecture: ${{ matrix.arch }}
+         version: ${{ matrix.version }}
+         shell: bash
+         memory: 5G
+         cpu_count: 4
+         run: |
+              # 软件库版本详情查看 https://cdn.netbsd.org/pub/pkgsrc/packages/NetBSD
+              sudo PKG_PATH="https://cdn.NetBSD.org/pub/pkgsrc/packages/NetBSD/${{ matrix.pkg_arch }}/${{ matrix.version }}/All/" \
+              pkg_add -u gcc14 cmake autoconf automake pkgconf libtool-2.4.7 git gmake jq python312 bash
+              # 这里只能用gcc 因为clang在arm64无法静态编译
+              export CC="gcc"
+              export CXX="g++"
+              export TZ='Asia/Shanghai'
+              # 传递Netbsd标志 你可以在这里设置一些编译选项 如 -DSPECK_ARM_NEON
+              export CFLAGS="-ffunction-sections -fdata-sections -O2 -w $CFLAGS -I/usr/include -I/usr/local/include -I$(pwd)/thirdparty -static -D_BSD_SOURCE -D_DEFAULT_SOURCE -D_NETBSD_SOURCE"
+              export LDFLAGS="-s -Wl,--gc-sections $LDFLAGS -L/usr/lib -L/usr/local/lib -static"
+              # 构建配置参数  
+              CONFIGURE_FLAGS=""
+              MAKE_FLAGS=""
+              if [ "${{ github.event.inputs.enable_zstd }}" = "true" ]; then  
+                 CONFIGURE_FLAGS="$CONFIGURE_FLAGS --with-zstd"
+                 curl -Lk -o zstd-1.5.7.tar.gz https://github.com/facebook/zstd/releases/download/v1.5.7/zstd-1.5.7.tar.gz || wget https://github.com/facebook/zstd/releases/download/v1.5.7/zstd-1.5.7.tar.gz
+                 tar xzf zstd-1.5.7.tar.gz
+                 echo "######################编译zstd依赖库########################"
+                 cd zstd-1.5.7/build/cmake
+                 mkdir -p build
+                 cd build
+                 cmake .. \
+                   -DCMAKE_BUILD_TYPE=Release \
+                   -DZSTD_BUILD_PROGRAMS=OFF \
+                   -DZSTD_BUILD_SHARED=OFF \
+                   -DZSTD_BUILD_STATIC=ON \
+                   -DCMAKE_EXE_LINKER_FLAGS="-static" \
+                   -DCMAKE_INSTALL_PREFIX=${GITHUB_WORKSPACE}/thirdparty/zstd \
+                   -DCMAKE_C_COMPILER=${CC:-gcc} \
+                   -DCMAKE_CXX_COMPILER=${CXX:-g++}
+                 cmake --build . --config Release -- -j4
+                 cmake --install .
+                 cd ${GITHUB_WORKSPACE}
+                 export CFLAGS="$CFLAGS -I${GITHUB_WORKSPACE}/thirdparty/zstd/include"
+                 export LDFLAGS="$LDFLAGS -L${GITHUB_WORKSPACE}/thirdparty/zstd/lib"
+              fi
+
+              if [ "${{ github.event.inputs.enable_openssl }}" = "true" ]; then  
+                 CONFIGURE_FLAGS="$CONFIGURE_FLAGS --with-openssl"
+                 curl -Lk -o openssl-3.6.1.tar.gz https://www.openssl.org/source/openssl-3.6.1.tar.gz || wget https://www.openssl.org/source/openssl-3.6.1.tar.gz
+                 tar xzf openssl-3.6.1.tar.gz
+                 echo "######################编译openssl依赖库########################"
+                 cd openssl-3.6.1
+                 ./Configure ${{ matrix.OPENSSL_TARGET }} \
+                   no-shared no-zlib no-tests --prefix=${GITHUB_WORKSPACE}/thirdparty/openssl \
+                   LDFLAGS="${LDFLAGS}" CFLAGS="${CFLAGS}"
+              
+                 #gmake -j$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 4)
+                 gmake
+                 gmake install_sw
+                 OPENSSL_DIR=${GITHUB_WORKSPACE}/thirdparty/openssl
+                 cd ${GITHUB_WORKSPACE}
+                 export CFLAGS="$CFLAGS -I${GITHUB_WORKSPACE}/thirdparty/openssl/include"
+                 export LDFLAGS="$LDFLAGS -L${GITHUB_WORKSPACE}/thirdparty/openssl/lib"
+              fi
+
+              if [ "${{ github.event.inputs.enable_miniupnp }}" = "true" ]; then  
+                 MAKE_FLAGS="$MAKE_FLAGS THIRDPARTY_MINIUPNPC=1"
+                 export CFLAGS="$CFLAGS -I$(pwd)/thirdparty/miniupnp"
+                 cp -r "$(pwd)/thirdparty/miniupnp/miniupnpc/include/." "$(pwd)/thirdparty/miniupnp/miniupnpc/"
+                 echo "######################编译miniupnp依赖库########################"
+                 # 补齐头文件
+                 awk '{print} /#include <stdio.h>/ {print "#if defined(__NetBSD__)\n#include <sys/ioctl.h>\n#include <net/if.h>\n#include <net/if_types.h>\n#include <netinet/in.h>\n#endif"}' thirdparty/miniupnp/miniupnpc/src/minissdpc.c > tmp.c && mv tmp.c thirdparty/miniupnp/miniupnpc/src/minissdpc.c
+                 cmake -S thirdparty/miniupnp/miniupnpc -B build-miniupnpc \
+                   -DCMAKE_C_COMPILER=${CC} \
+                   -DUPNPC_BUILD_SHARED=OFF \
+                   -DUPNPC_BUILD_STATIC=ON \
+                   -DUPNPC_BUILD_SAMPLE=OFF \
+                   -DUPNPC_BUILD_TESTS=OFF \
+                   -DCMAKE_POLICY_VERSION_MINIMUM=3.18 \
+                   -DCMAKE_INSTALL_PREFIX=$(pwd)/thirdparty/miniupnp/miniupnpc/build
+              
+                 cmake --build build-miniupnpc -j$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 4)
+                 cmake --install build-miniupnpc
+                 # 已经添加这个库 就明确定义已经集成
+                 export CFLAGS="$CFLAGS -DHAVE_LIBMINIUPNPC=1"
+                 export CFLAGS="$CFLAGS -I${GITHUB_WORKSPACE}/thirdparty/miniupnp/miniupnpc"
+                 export LDFLAGS="$LDFLAGS -L$(pwd)/thirdparty/miniupnp/miniupnpc/build/lib -lminiupnpc"
+              fi
+
+              if [ "${{ github.event.inputs.enable_natpmp }}" = "true" ]; then  
+                 MAKE_FLAGS="$MAKE_FLAGS THIRDPARTY_LIBNATPMP=1"
+                 echo "######################编译libnatpmp依赖库########################"
+                 cmake -S "$(pwd)/thirdparty/libnatpmp" -B "$(pwd)/thirdparty/libnatpmp" \
+                   -DCMAKE_C_COMPILER=${CC} \
+                   -DCMAKE_INSTALL_PREFIX="$(pwd)/thirdparty/libnatpmp" \
+                   -DBUILD_SHARED_LIBS=OFF -DCMAKE_POLICY_VERSION_MINIMUM=3.18
+              
+                 cmake --build "$(pwd)/thirdparty/libnatpmp" --target natpmp -j$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 4)
+                 cmake --install "$(pwd)/thirdparty/libnatpmp"
+                 ls -la thirdparty/libnatpmp/libnatpmp.a || echo "libnatpmp.a库文件不存在"
+                 # 更新 LDFLAGS / CFLAGS 以便后续链接使用
+                 export LDLIBS_EXTRA="$LDLIBS_EXTRA -lnatpmp"
+                 LDFLAGS="$LDFLAGS -L$(pwd)/thirdparty/libnatpmp"
+                 export CFLAGS="$CFLAGS -I$(pwd)/thirdparty/libnatpmp -DHAVE_LIBNATPMP=1"
+                 export CFLAGS="$CFLAGS -I${GITHUB_WORKSPACE}/thirdparty/libnatpmp/include"
+                 export LDFLAGS="$LDFLAGS -L${GITHUB_WORKSPACE}/thirdparty/libnatpmp/lib -lnatpmp"
+              fi
+
+              if [ "${{ github.event.inputs.enable_pcap }}" = "true" ]; then  
+                 CONFIGURE_FLAGS="$CONFIGURE_FLAGS --enable-pcap"
+                 curl -Lk -o libpcap-1.10.6.tar.gz https://www.tcpdump.org/release/libpcap-1.10.6.tar.gz || wget https://www.tcpdump.org/release/libpcap-1.10.6.tar.gz
+                 tar xzf libpcap-1.10.6.tar.gz
+                 echo "######################编译libpcap依赖库########################"
+                 cd libpcap-1.10.6
+                 ./configure --disable-shared --prefix=${GITHUB_WORKSPACE}/thirdparty/pcap
+              
+                 gmake -j$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 4)
+                 gmake install
+                 cd ${GITHUB_WORKSPACE}
+                 export PKG_CONFIG_PATH="${GITHUB_WORKSPACE}/thirdparty/pcap/lib/pkgconfig:${PKG_CONFIG_PATH}"
+                 # 获取 libpcap 完整的静态链接标志，包含所有私有依赖
+                 PCAP_STATIC_LIBS=$(pkg-config --libs --static libpcap 2>/dev/null || echo "-lpcap")
+                 echo "libpcap完整依赖库：$PCAP_STATIC_LIBS"
+                 export CFLAGS="$CFLAGS -I${GITHUB_WORKSPACE}/thirdparty/pcap/include"
+                 export LDFLAGS="$LDFLAGS $PCAP_STATIC_LIBS"
+              fi
+
+              if [ "${{ github.event.inputs.enable_libcap }}" = "true" ]; then
+                 echo ""
+                 echo "# BSD 内核不支持libcap #"
+                 echo ""
+              fi
+              
+              if [ "${{ github.event.inputs.enable_pthread }}" = "true" ]; then
+                 CONFIGURE_FLAGS="$CONFIGURE_FLAGS --enable-pthread"
+                 export LDFLAGS="$LDFLAGS -lpthread"
+              fi
+
+              echo "########### 编译 N3N ###########"
+              # 因src/n2n_port_mapping.c缺少头文件定义 stdint.h stddef.h n2n.h n2n_define.h 这里手动补上
+              tmpfile=$(mktemp)
+              printf '#include <stddef.h>\n#include <n3n/logging.h>\n#include "n2n.h"\n#include "n2n_define.h"\n' > $tmpfile
+              cat src/n2n_port_mapping.c >> $tmpfile
+              mv $tmpfile src/n2n_port_mapping.c
+              ./autogen.sh 
+              ./configure --with-rundir=/tmp $CONFIGURE_FLAGS PREFIX=. CC="${CC}" LDFLAGS="${LDFLAGS}" CFLAGS="${CFLAGS}"
+              gmake -j$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 4) PREFIX=. $MAKE_FLAGS
+              ls -la apps/
+              gmake install \
+               PREFIX=. $MAKE_FLAGS \
+               CONFIG_BINDIR=./bin \
+               CONFIG_SBINDIR=./bin \
+               ETCDIR=./bin \
+               CONFIG_DOCDIR=./bin \
+               CONFIG_MANDIR=./bin \
+               CONFIG_SYSTEMDDIR=./bin
+
+              # 复制示例配置文件进去
+              cp doc/edge.conf.sample ./bin/ 2>/dev/null || true
+              cp doc/supernode.conf.sample ./bin/ 2>/dev/null || true
+          
+              echo "### 编译 tools ####"
+              gmake tools LDFLAGS="${LDFLAGS} -L$(pwd)/src -L$(pwd)/libs/connslot -lconnslot" LDLIBS_EXTRA="${LDLIBS_EXTRA}" LDLIBS_LOCAL="$LDLIBS_LOCAL -lconnslot" CFLAGS="${CFLAGS} -I${GITHUB_WORKSPACE}/include" 
+           
+              echo "### 安装 tools ####"
+              gmake -C tools install CONFIG_SBINDIR=$(pwd)/bin INSTALL=install INSTALL_PROG="install -m 755" LDFLAGS="${LDFLAGS} -L$(pwd)/src -L$(pwd)/libs/connslot -lconnslot" LDLIBS_LOCAL="$LDLIBS_LOCAL -lconnslot" CFLAGS="${CFLAGS} -I${GITHUB_WORKSPACE}/include"
+              ls -la tools/
+              
+              #strip bin/* || true
+              file bin/n3n-edge || true
+              ldd bin/n3n-edge || true
+              ldd bin/n3n-portfwd || true
+              bin/n3n-edge -h
+
+     - name: ⛏ 编译 OpenBSD N3N
+       if: ${{ endsWith(matrix.target, 'openbsd') }}
+       uses: cross-platform-actions/action@master
+       with:
+         operating_system: openbsd
+         architecture: ${{ matrix.arch }}
+         version: ${{ matrix.version }}
+         shell: bash
+         memory: 5G
+         cpu_count: 4
+         run: |
+              # 软件库版本详情查看 https://cdn.openbsd.org/pub/OpenBSD/版本/packages
+              sudo pkg_add gmake cmake autoconf-2.71p0 automake-1.18 libtool wget python-3.12.11 curl git jq bash bison
+              export AUTOCONF_VERSION=2.71
+              export AUTOMAKE_VERSION=1.18
+              export CC="clang"
+              export CXX="clang++"
+              export TZ='Asia/Shanghai'
+              # 你可以在这里设置一些编译选项 如 -DSPECK_ARM_NEON
+              export CFLAGS="-ffunction-sections -fdata-sections -O2 -w $CFLAGS -I/usr/local/include -I$(pwd)/thirdparty -static"
+              export LDFLAGS="-s -Wl,--gc-sections $LDFLAGS -static"
+              # 构建配置参数  
+              CONFIGURE_FLAGS=""
+              MAKE_FLAGS=""
+              if [ "${{ github.event.inputs.enable_zstd }}" = "true" ]; then  
+                 CONFIGURE_FLAGS="$CONFIGURE_FLAGS --with-zstd"
+                 curl -Lk -o zstd-1.5.7.tar.gz https://github.com/facebook/zstd/releases/download/v1.5.7/zstd-1.5.7.tar.gz || wget https://github.com/facebook/zstd/releases/download/v1.5.7/zstd-1.5.7.tar.gz
+                 tar xzf zstd-1.5.7.tar.gz
+                 echo "######################编译zstd依赖库########################"
+                 cd zstd-1.5.7/build/cmake
+                 mkdir -p build
+                 cd build
+                 cmake .. \
+                   -DCMAKE_BUILD_TYPE=Release \
+                   -DZSTD_BUILD_PROGRAMS=OFF \
+                   -DZSTD_BUILD_SHARED=OFF \
+                   -DZSTD_BUILD_STATIC=ON \
+                   -DCMAKE_EXE_LINKER_FLAGS="-static" \
+                   -DCMAKE_INSTALL_PREFIX=${GITHUB_WORKSPACE}/thirdparty/zstd \
+                   -DCMAKE_C_COMPILER=${CC:-clang} \
+                   -DCMAKE_CXX_COMPILER=${CXX:-clang++}
+                 cmake --build . --config Release -- -j4
+                 cmake --install .
+                 cd ${GITHUB_WORKSPACE}
+                 export CFLAGS="$CFLAGS -I${GITHUB_WORKSPACE}/thirdparty/zstd/include"
+                 export LDFLAGS="$LDFLAGS -L${GITHUB_WORKSPACE}/thirdparty/zstd/lib"
+              fi
+
+              if [ "${{ github.event.inputs.enable_openssl }}" = "true" ]; then  
+                 CONFIGURE_FLAGS="$CONFIGURE_FLAGS --with-openssl"
+                 curl -Lk -o openssl-3.6.1.tar.gz https://www.openssl.org/source/openssl-3.6.1.tar.gz || wget https://www.openssl.org/source/openssl-3.6.1.tar.gz
+                 tar xzf openssl-3.6.1.tar.gz
+                 echo "######################编译openssl依赖库########################"
+                 cd openssl-3.6.1
+                 ./Configure ${{ matrix.OPENSSL_TARGET }} \
+                   no-shared no-zlib no-tests --prefix=${GITHUB_WORKSPACE}/thirdparty/openssl \
+                   LDFLAGS="${LDFLAGS}" CFLAGS="${CFLAGS}"
+              
+                 gmake -j$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 4)
+                 gmake install_sw
+                 OPENSSL_DIR=${GITHUB_WORKSPACE}/thirdparty/openssl
+                 cd ${GITHUB_WORKSPACE}
+                 export CFLAGS="$CFLAGS -I${GITHUB_WORKSPACE}/thirdparty/openssl/include"
+                 export LDFLAGS="$LDFLAGS -L${GITHUB_WORKSPACE}/thirdparty/openssl/lib"
+              fi
+
+              if [ "${{ github.event.inputs.enable_miniupnp }}" = "true" ]; then  
+                 MAKE_FLAGS="$MAKE_FLAGS THIRDPARTY_MINIUPNPC=1"
+                 export CFLAGS="$CFLAGS -I$(pwd)/thirdparty/miniupnp"
+                 cp -r "$(pwd)/thirdparty/miniupnp/miniupnpc/include/." "$(pwd)/thirdparty/miniupnp/miniupnpc/"
+                 echo "######################编译miniupnp依赖库########################"
+                 cmake -S thirdparty/miniupnp/miniupnpc -B build-miniupnpc \
+                   -DCMAKE_C_COMPILER=${CC} \
+                   -DUPNPC_BUILD_SHARED=OFF \
+                   -DUPNPC_BUILD_STATIC=ON \
+                   -DUPNPC_BUILD_SAMPLE=OFF \
+                   -DUPNPC_BUILD_TESTS=OFF \
+                   -DCMAKE_POLICY_VERSION_MINIMUM=3.18 \
+                   -DCMAKE_INSTALL_PREFIX=$(pwd)/thirdparty/miniupnp/miniupnpc/build
+              
+                 cmake --build build-miniupnpc -j$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 4)
+                 cmake --install build-miniupnpc
+                 # 已经添加这个库 就明确定义已经集成
+                 export CFLAGS="$CFLAGS -DHAVE_LIBMINIUPNPC=1"
+                 export CFLAGS="$CFLAGS -I${GITHUB_WORKSPACE}/thirdparty/miniupnp/miniupnpc"
+                 export LDFLAGS="$LDFLAGS -L$(pwd)/thirdparty/miniupnp/miniupnpc/build/lib -lminiupnpc"
+              fi
+
+              if [ "${{ github.event.inputs.enable_natpmp }}" = "true" ]; then  
+                 MAKE_FLAGS="$MAKE_FLAGS THIRDPARTY_LIBNATPMP=1"
+                 echo "######################编译libnatpmp依赖库########################"
+                 cmake -S "$(pwd)/thirdparty/libnatpmp" -B "$(pwd)/thirdparty/libnatpmp" \
+                   -DCMAKE_C_COMPILER=${CC} \
+                   -DCMAKE_INSTALL_PREFIX="$(pwd)/thirdparty/libnatpmp" \
+                   -DBUILD_SHARED_LIBS=OFF -DCMAKE_POLICY_VERSION_MINIMUM=3.18
+              
+                 cmake --build "$(pwd)/thirdparty/libnatpmp" --target natpmp -j$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 4)
+                 cmake --install "$(pwd)/thirdparty/libnatpmp"
+                 ls -la thirdparty/libnatpmp/libnatpmp.a || echo "libnatpmp.a库文件不存在"
+                 # 更新 LDFLAGS / CFLAGS 以便后续链接使用
+                 export LDLIBS_EXTRA="$LDLIBS_EXTRA -lnatpmp"
+                 LDFLAGS="$LDFLAGS -L$(pwd)/thirdparty/libnatpmp"
+                 export CFLAGS="$CFLAGS -I$(pwd)/thirdparty/libnatpmp -DHAVE_LIBNATPMP=1"
+                 export CFLAGS="$CFLAGS -I${GITHUB_WORKSPACE}/thirdparty/libnatpmp/include"
+                 export LDFLAGS="$LDFLAGS -L${GITHUB_WORKSPACE}/thirdparty/libnatpmp/lib -lnatpmp"
+              fi
+
+              if [ "${{ github.event.inputs.enable_pcap }}" = "true" ]; then  
+                 CONFIGURE_FLAGS="$CONFIGURE_FLAGS --enable-pcap"
+                 wget https://www.tcpdump.org/release/libpcap-1.10.6.tar.gz
+                 tar xzf libpcap-1.10.6.tar.gz
+                 echo "######################编译libpcap依赖库########################"
+                 cd libpcap-1.10.6
+                 ./configure --disable-shared --prefix=${GITHUB_WORKSPACE}/thirdparty/pcap
+              
+                 gmake -j$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 4)
+                 gmake install
+                 cd ${GITHUB_WORKSPACE}
+                 export PKG_CONFIG_PATH="${GITHUB_WORKSPACE}/thirdparty/pcap/lib/pkgconfig:${PKG_CONFIG_PATH}"
+                 # 获取 libpcap 完整的静态链接标志，包含所有私有依赖
+                 PCAP_STATIC_LIBS=$(pkg-config --libs --static libpcap 2>/dev/null || echo "-lpcap")
+                 echo "libpcap完整依赖库：$PCAP_STATIC_LIBS"
+                 export CFLAGS="$CFLAGS -I${GITHUB_WORKSPACE}/thirdparty/pcap/include"
+                 export LDFLAGS="$LDFLAGS $PCAP_STATIC_LIBS"
+              fi
+
+              if [ "${{ github.event.inputs.enable_libcap }}" = "true" ]; then
+                 echo ""
+                 echo "# BSD 内核不支持libcap #"
+                 echo ""
+              fi
+              
+              if [ "${{ github.event.inputs.enable_pthread }}" = "true" ]; then
+                 CONFIGURE_FLAGS="$CONFIGURE_FLAGS --enable-pthread"
+                 export LDFLAGS="$LDFLAGS -lpthread"
+                 # 添加缺少的头文件
+                 awk '{print} /#ifdef HAVE_LIBPTHREAD/ {print "#include <pthread.h>"}' src/resolve.h > src/resolve.h.tmp && mv src/resolve.h.tmp src/resolve.h
+              fi
+
+              echo "########### 编译 N3N ###########"
+              # 因src/n2n_port_mapping.c缺少头文件定义 stdint.h stddef.h n2n.h n2n_define.h 这里手动补上
+              tmpfile=$(mktemp)
+              printf '#include <stddef.h>\n#include <n3n/logging.h>\n#include "n2n.h"\n#include "n2n_define.h"\n' > $tmpfile
+              cat src/n2n_port_mapping.c >> $tmpfile
+              mv $tmpfile src/n2n_port_mapping.c
+              ./autogen.sh 
+              ./configure --with-rundir=/tmp  $CONFIGURE_FLAGS PREFIX=. CC="${CC}" LDFLAGS="${LDFLAGS}" CFLAGS="${CFLAGS}"
+              gmake -j$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 4) PREFIX=. $MAKE_FLAGS
+              ls -la apps/
+              gmake install \
+               PREFIX=. $MAKE_FLAGS \
+               CONFIG_BINDIR=./bin \
+               CONFIG_SBINDIR=./bin \
+               ETCDIR=./bin \
+               CONFIG_DOCDIR=./bin \
+               CONFIG_MANDIR=./bin \
+               CONFIG_SYSTEMDDIR=./bin
+
+              # 复制示例配置文件进去
+              cp doc/edge.conf.sample ./bin/ 2>/dev/null || true
+              cp doc/supernode.conf.sample ./bin/ 2>/dev/null || true
+          
+              echo "### 编译 tools ####"
+              gmake tools LDFLAGS="${LDFLAGS} -L$(pwd)/src -L$(pwd)/libs/connslot -lconnslot" LDLIBS_EXTRA="${LDLIBS_EXTRA}" LDLIBS_LOCAL="$LDLIBS_LOCAL -lconnslot" CFLAGS="${CFLAGS} -I${GITHUB_WORKSPACE}/include" 
+           
+              echo "### 安装 tools ####"
+              gmake -C tools install CONFIG_SBINDIR=$(pwd)/bin INSTALL=install INSTALL_PROG="install -m 755" LDFLAGS="${LDFLAGS} -L$(pwd)/src -L$(pwd)/libs/connslot -lconnslot" LDLIBS_LOCAL="$LDLIBS_LOCAL -lconnslot" CFLAGS="${CFLAGS} -I${GITHUB_WORKSPACE}/include"
+              ls -la tools/
+              
+              #strip bin/* || true
+              file bin/n3n-edge || true
+              ldd bin/n3n-edge || true
+              ldd bin/n3n-portfwd || true
+              bin/n3n-edge -h
+           
+     - name: 📥 下载 musl 交叉编译工具链
+       if: runner.os == 'Linux' && !endsWith(matrix.target, 'bsd')
+       uses: lmq8267/dl-musl@main
+       with:
+        target: ${{ matrix.URL }}
+        static: true
+        gccpath: /tmp
+
+     - name: 🔩 设置环境变量
+       if: "!endsWith(matrix.target, 'bsd')"
+       env:
+        URL: ${{ matrix.URL }}
+       shell: bash
+       run: |
+          # 你可以在这里设置一些编译选项 如 -DSPECK_ARM_NEON
+          if [[ "$RUNNER_OS" == "Linux" ]]; then
+            export CFLAGS="-ffunction-sections -fdata-sections -O2 -w $CFLAGS \
+              -I${GITHUB_WORKSPACE}/thirdparty/zstd-${URL}/include \
+              -I${GITHUB_WORKSPACE}/thirdparty/openssl-${URL}/include \
+              -I${GITHUB_WORKSPACE}/thirdparty/pcap-${URL}/include \
+              -I${GITHUB_WORKSPACE}/thirdparty/libcap-${URL}/include \
+              -I${GITHUB_WORKSPACE}/thirdparty/miniupnp/miniupnpc \
+              -I${GITHUB_WORKSPACE}/thirdparty/libnatpmp/include"
+            export LDFLAGS="-s -Wl,--gc-sections $LDFLAGS \
+              -L${GITHUB_WORKSPACE}/thirdparty/zstd-${URL}/lib \
+              -L${GITHUB_WORKSPACE}/thirdparty/openssl-${URL}/lib \
+              -L${GITHUB_WORKSPACE}/thirdparty/openssl-${URL}/lib64 \
+              -L${GITHUB_WORKSPACE}/thirdparty/openssl-${URL}/lib-arm64 \
+              -L${GITHUB_WORKSPACE}/thirdparty/pcap-${URL}/lib \
+              -L${GITHUB_WORKSPACE}/thirdparty/libcap-${URL}/lib \
+              -L${GITHUB_WORKSPACE}/thirdparty/miniupnp/miniupnpc/build/lib \
+              -L${GITHUB_WORKSPACE}/thirdparty/libnatpmp/lib"
+          elif [[ "$RUNNER_OS" == "macOS" ]]; then
+            brew install autoconf automake libtool
+            # 根据 matrix.target 指定架构
+            if [[ "${{ matrix.target }}" == "arm64-macos" ]]; then
+              export ARCH_FLAG="-arch arm64"
+            else
+              export ARCH_FLAG="-arch x86_64"
+            fi
+            export CC=${CC:-clang}
+            export CXX=${CXX:-clang++}
+            export CFLAGS="$ARCH_FLAG -O2 \
+              -I${GITHUB_WORKSPACE}/thirdparty/zstd-${URL}/include \
+              -I${GITHUB_WORKSPACE}/thirdparty/openssl-${URL}/include \
+              -I${GITHUB_WORKSPACE}/thirdparty/pcap-${URL}/include \
+              -I${GITHUB_WORKSPACE}/thirdparty/miniupnp/miniupnpc"
+            export LDFLAGS="$ARCH_FLAG -L${GITHUB_WORKSPACE}/thirdparty/zstd-${URL}/lib \
+              -L${GITHUB_WORKSPACE}/thirdparty/openssl-${URL}/lib \
+              -L${GITHUB_WORKSPACE}/thirdparty/pcap-${URL}/lib \
+              -L${GITHUB_WORKSPACE}/thirdparty/miniupnp/miniupnpc/build/lib"
+          else
+            # Windows
+            case "${{ matrix.target }}" in
+              x86_64-windows)
+                export CC=x86_64-w64-mingw32-gcc
+                export CXX=x86_64-w64-mingw32-g++
+                ;;
+              i686-windows)
+                export CC=i686-w64-mingw32-gcc
+                export CXX=i686-w64-mingw32-g++
+                ;;
+              arm64-windows)
+                export CC=aarch64-w64-mingw32-gcc
+                export CXX=aarch64-w64-mingw32-g++
+                ;;
+              *)
+                echo "未知 Windows target: ${{ matrix.target }}"
+                exit 1
+                ;;
+            esac
+            export CFLAGS="-O2 \
+              -I${GITHUB_WORKSPACE}/thirdparty/zstd-${URL}/include \
+              -I${GITHUB_WORKSPACE}/thirdparty/openssl-${URL}/include \
+              -I${GITHUB_WORKSPACE}/thirdparty/miniupnp/miniupnpc \
+              -I/c/thirdparty/mingw-w64/include"
+            export LDFLAGS="-L${GITHUB_WORKSPACE}/thirdparty/zstd-${URL}/lib \
+              -L${GITHUB_WORKSPACE}/thirdparty/openssl-${URL}/lib \
+              -L/c/mingw-w64/lib -static"
+          fi
+          if [[ "$RUNNER_OS" == "Linux" && "${{ matrix.target }}" =~ windows$ ]]; then
+            # 为Windows添加特有库
+            export WINDRES=${URL}-windres
+            echo "WINDRES=${URL}-windres" >> $GITHUB_ENV
+          fi
+          echo "CC=$CC" >> $GITHUB_ENV
+          echo "CXX=$CXX" >> $GITHUB_ENV
+          echo "CFLAGS=$CFLAGS" >> $GITHUB_ENV
+          echo "CXXFLAGS=$CFLAGS" >> $GITHUB_ENV
+          echo "CPPFLAGS=$CFLAGS" >> $GITHUB_ENV
+          echo "LDFLAGS=$LDFLAGS" >> $GITHUB_ENV
+
+     - name: 🗃 缓存 zstd 库
+       if: ${{ inputs.enable_zstd && !endsWith(matrix.target, 'bsd') }}
+       id: cache-zstd
+       uses: actions/cache@v5
+       with:
+        path: |
+          thirdparty/zstd-${{ matrix.URL }}
+        key: zstd-${{ matrix.URL }}-cache
+     - name: ⛏ 编译 zstd 库
+       if: ${{ inputs.enable_zstd && steps.cache-zstd.outputs.cache-hit != 'true' && !endsWith(matrix.target, 'bsd') }}
+       env:
+         TARGET: ${{ matrix.target }}
+         URL: ${{ matrix.URL }}
+       shell: bash
+       run: |
+         if [ ! -d "${GITHUB_WORKSPACE}/thirdparty/zstd-${URL}" ] || [ -z "$(find ${GITHUB_WORKSPACE}/thirdparty/zstd-${URL}/lib -name '*.a' 2>/dev/null)" ] ; then
+            curl -Lk -o zstd-1.5.7.tar.gz https://github.com/facebook/zstd/releases/download/v1.5.7/zstd-1.5.7.tar.gz || wget https://github.com/facebook/zstd/releases/download/v1.5.7/zstd-1.5.7.tar.gz
+            tar xf zstd-1.5.7.tar.gz --exclude='*/tests/*'
+            echo "######################编译zstd依赖库########################"
+            cd zstd-1.5.7/build/cmake
+            mkdir -p build
+            cd build
+            # 交叉编译配置
+            cmake .. \
+              -DCMAKE_BUILD_TYPE=Release \
+              -DZSTD_BUILD_PROGRAMS=OFF \
+              -DZSTD_BUILD_SHARED=OFF \
+              -DZSTD_BUILD_STATIC=ON \
+              -DCMAKE_INSTALL_PREFIX=${GITHUB_WORKSPACE}/thirdparty/zstd-${URL} \
+              -DCMAKE_C_COMPILER=${CC:-gcc} \
+              -DCMAKE_CXX_COMPILER=${CXX:-g++}
+            cmake --build . --config Release --parallel
+            cmake --install .
+         fi
+         
+     #- name: ⚙️ 设置 MSVC 环境
+     #  if: runner.os == 'windows'
+     #  uses: ilammy/msvc-dev-cmd@v1  
+     #  with:  
+     #   arch: ${{ matrix.MSVC_ARCH }}
+     #- name: ⚙️ 安装 Perl
+     #  if: runner.os == 'windows'
+     #  uses: shogo82148/actions-setup-perl@v1  
+     #  with:  
+     #   perl-version: '5.38'
+     #- name: ⚙️ 安装 NASM
+     #  if: runner.os == 'windows'
+     #  run: |  
+     #   choco install nasm -y  
+     #   echo "C:\Program Files\NASM" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+     - name: 🗃 缓存 openssl 库
+       if: ${{ inputs.enable_openssl && !endsWith(matrix.target, 'bsd') }}
+       id: cache-openssl
+       uses: actions/cache@v5
+       with:
+        path: |
+          thirdparty/openssl-${{ matrix.URL }}
+        key: openssl-${{ matrix.URL }}-cache
+     - name: ⛏ 编译 openssl 库
+       if: ${{ inputs.enable_openssl && steps.cache-openssl.outputs.cache-hit != 'true' && !endsWith(matrix.target, 'bsd') }}
+       env:
+         TARGET: ${{ matrix.target }}
+         URL: ${{ matrix.URL }}
+       shell: bash
+       run: |
+         if [ ! -d "${GITHUB_WORKSPACE}/thirdparty/openssl-${URL}" ] || [ -z "$(find ${GITHUB_WORKSPACE}/thirdparty/openssl-${URL}/lib -name '*.a' 2>/dev/null)" ] ; then
+            curl -Lk -o openssl-3.6.1.tar.gz https://www.openssl.org/source/openssl-3.6.1.tar.gz || wget https://www.openssl.org/source/openssl-3.6.1.tar.gz
+            tar xf openssl-3.6.1.tar.gz --exclude='*/tests/*'
+            echo "######################编译openssl依赖库########################"
+            cd openssl-3.6.1
+            ./Configure ${{ matrix.OPENSSL_TARGET }} \
+              no-shared no-zlib no-tests --prefix=${GITHUB_WORKSPACE}/thirdparty/openssl-${URL} \
+              LDFLAGS="${LDFLAGS}" CFLAGS="${CFLAGS}"
+              
+            make -j$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 4)
+            make install_sw
+         fi
+
+     - name: 🗃 缓存 pcap 库
+       if: ${{ inputs.enable_pcap && (runner.os == 'Linux' || runner.os == 'macOS') && !contains(matrix.target, 'windows') && !endsWith(matrix.target, 'bsd') }}
+       id: cache-pcap
+       uses: actions/cache@v5
+       with:
+        path: |
+          thirdparty/pcap-${{ matrix.URL }}
+        key: pcap-${{ matrix.URL }}-cache
+     - name: ⛏ 编译 pcap 库
+       if: ${{ inputs.enable_pcap && (runner.os == 'Linux' || runner.os == 'macOS') && steps.cache-pcap.outputs.cache-hit != 'true' && !contains(matrix.target, 'windows') && !endsWith(matrix.target, 'bsd') }}
+       env:
+         TARGET: ${{ matrix.target }}
+         URL: ${{ matrix.URL }}
+       run: |
+         if [ ! -d "${GITHUB_WORKSPACE}/thirdparty/pcap-${URL}" ] || [ -z "$(find ${GITHUB_WORKSPACE}/thirdparty/pcap-${URL}/lib -name '*.a' 2>/dev/null)" ] ; then
+            wget https://www.tcpdump.org/release/libpcap-1.10.6.tar.gz
+            tar xf libpcap-1.10.6.tar.gz
+            echo "######################编译miniupnp依赖库########################"
+            cd libpcap-1.10.6
+            ./configure --host=${TARGET} --prefix=${GITHUB_WORKSPACE}/thirdparty/pcap-${URL} --disable-shared --enable-static
+              
+            make -j$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 4)
+            make install
+         fi
+
+     - name: 🗃 缓存 libcap 库
+       if: ${{ inputs.enable_libcap && runner.os == 'Linux' && !contains(matrix.target, 'windows') && !endsWith(matrix.target, 'bsd') }}
+       id: cache-libcap
+       uses: actions/cache@v5
+       with:
+        path: |
+          thirdparty/libcap-${{ matrix.URL }}
+        key: libcap-${{ matrix.URL }}-cache
+     - name: ⛏ 编译 libcap 库
+       if: ${{ inputs.enable_libcap && runner.os == 'Linux' && steps.cache-libcap.outputs.cache-hit != 'true' && !contains(matrix.target, 'windows') && !endsWith(matrix.target, 'bsd') }}
+       env:
+         TARGET: ${{ matrix.target }}
+         URL: ${{ matrix.URL }}
+       run: |
+         if [ ! -d "${GITHUB_WORKSPACE}/thirdparty/libcap-${URL}" ] || [ -z "$(find ${GITHUB_WORKSPACE}/thirdparty/libcap-${URL}/lib -name '*.a' 2>/dev/null)" ] ; then
+            wget https://www.kernel.org/pub/linux/libs/security/linux-privs/libcap2/libcap-2.77.tar.gz
+            tar xf libcap-2.77.tar.gz
+            echo "######################编译libcap依赖库########################"
+            cd libcap-2.77/libcap
+            #make _makenames      # 用 host gcc 编译生成可执行文件
+            #./_makenames > cap_names.h
+            #gcc empty.c -o empty
+            #objcopy --dump-section .interp=loader.txt empty /dev/null
+            #make BUILD_CC=gcc CC=${CC} AR=${AR} RANLIB=${RANLIB} PREFIX=${GITHUB_WORKSPACE}/thirdparty/libcap-${URL} SHARED=no lib=lib -j$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 4)
+            #make install prefix=${GITHUB_WORKSPACE}/thirdparty/libcap-${URL} lib=lib
+            make BUILD_CC=gcc \
+             CC=${CC} \
+             AR=${AR} \
+             RANLIB=${RANLIB} \
+             SHARED=no \
+              libcap.a
+
+            mkdir -p ${GITHUB_WORKSPACE}/thirdparty/libcap-${URL}/lib
+            mkdir -p ${GITHUB_WORKSPACE}/thirdparty/libcap-${URL}/include/sys
+
+            cp libcap.a ${GITHUB_WORKSPACE}/thirdparty/libcap-${URL}/lib/
+            cp ../libcap/include/sys/capability.h ${GITHUB_WORKSPACE}/thirdparty/libcap-${URL}/include/sys/
+         fi
+         
+     - name: ⛏ 编译Linux Mac Windows N3N
+       if: "!endsWith(matrix.target, 'bsd')"
+       env:
+         TARGET: ${{ matrix.target }}
+         URL: ${{ matrix.URL }}
+       shell: bash
+       run: |
+         # 构建配置参数  
+         CONFIGURE_FLAGS=""
+         MAKE_FLAGS=""
+         export TZ='Asia/Shanghai'
+         if [[ "$RUNNER_OS" == "Linux" && "${{ matrix.target }}" =~ windows$ ]]; then
+            # Windows 交叉编译需要的系统库
+            export LDFLAGS="$LDFLAGS -lws2_32 -liphlpapi -lnetapi32"
+            export LIBS="$LIBS -lws2_32 -liphlpapi -lnetapi32"
+         fi
+      
+         # 根据输入添加参数  
+         if [ "${{ github.event.inputs.enable_zstd }}" = "true" ]; then  
+           CONFIGURE_FLAGS="$CONFIGURE_FLAGS --with-zstd"
+           if echo "$URL" | grep -q mingw; then
+              export LDLIBS_EXTRA="$LDLIBS_EXTRA -lzstd"
+           fi
+         fi  
+      
+         if [ "${{ github.event.inputs.enable_openssl }}" = "true" ]; then  
+           CONFIGURE_FLAGS="$CONFIGURE_FLAGS --with-openssl"
+           OPENSSL_DIR=${GITHUB_WORKSPACE}/thirdparty/openssl-${URL}
+           if echo "$URL" | grep -q mingw; then
+              export LIBS="$LIBS -lssl -lcrypto -lcrypt32 -lbcrypt"
+              export LDLIBS_EXTRA="$LDLIBS_EXTRA -lssl -lcrypto -lcrypt32 -lbcrypt"
+           fi
+         fi 
+         
+         # 因src/n2n_port_mapping.c缺少头文件定义 stdint.h stddef.h n2n.h n2n_define.h 这里手动补上
+         if [[ "$RUNNER_OS" == "macOS" ]]; then
+            # macOS 
+            tmpfile=$(mktemp)
+            printf '#include <stddef.h>\n#include <n3n/logging.h>\n#include "n2n.h"\n#include "n2n_define.h"\n' > "$tmpfile"
+            cat src/n2n_port_mapping.c >> "$tmpfile"
+            mv "$tmpfile" src/n2n_port_mapping.c
+           else
+            # Linux / Windows Git Bash
+            sed -i '1i#include <stddef.h>\n#include <n3n/logging.h>\n#include "n2n.h"\n#include "n2n_define.h"\n' src/n2n_port_mapping.c
+         fi
+         
+         if [ "${{ github.event.inputs.enable_miniupnp }}" = "true" ]; then
+           echo "###########编译 miniupnpc  依赖库###########"
+           MAKE_FLAGS="$MAKE_FLAGS THIRDPARTY_MINIUPNPC=1"
+           CFLAGS="$CFLAGS -I$(pwd)/thirdparty/miniupnp"
+           cp -r "$(pwd)/thirdparty/miniupnp/miniupnpc/include/." "$(pwd)/thirdparty/miniupnp/miniupnpc/"
+           if echo "$URL" | grep -q mingw; then
+              # 传递win32标志 
+              export CFLAGS="$CFLAGS -D_WIN32"
+              
+              echo "修复 mingw setsockopt 参数类型"
+              # 因为在2.3.3版本才修复 mingw setsockopt time错误 https://github.com/miniupnp/miniupnp/commit/f1fc7490a6f9d0b3ea5667b7db15385fd3253b60
+              FILE="thirdparty/miniupnp/miniupnpc/src/connecthostport.c"
+              sed -i 's/&timeout, sizeof(struct timeval)/(const char *)\&timeout, sizeof(timeout)/g' "$FILE"
+              
+              cmake -S thirdparty/miniupnp/miniupnpc -B build-miniupnpc \
+                -DCMAKE_C_COMPILER=${CC} \
+                -DUPNPC_BUILD_SHARED=OFF \
+                -DUPNPC_BUILD_SAMPLE=OFF \
+                -DUPNPC_BUILD_TESTS=OFF \
+                -DCMAKE_POLICY_VERSION_MINIMUM=3.18 \
+                -DWIN32=ON -DUPNPC_BUILD_STATIC=ON \
+                -DCMAKE_INSTALL_PREFIX=$(pwd)/thirdparty/miniupnp/miniupnpc/build
+              # 由于libminiupnpc.a没有链接Windows库所以编译N3N的exe时要明确指定添加库链接
+              sed -i 's/LDLIBS)/LDLIBS) -lminiupnpc -lws2_32 -liphlpapi -lnetapi32/g' tools/Makefile
+              sed -i 's/LDLIBS)/LDLIBS) -lminiupnpc -lws2_32 -liphlpapi -lnetapi32/g' apps/Makefile
+           else
+             cmake -S thirdparty/miniupnp/miniupnpc -B build-miniupnpc \
+                -DCMAKE_C_COMPILER=${CC} \
+                -DUPNPC_BUILD_SHARED=OFF \
+                -DUPNPC_BUILD_STATIC=ON \
+                -DUPNPC_BUILD_SAMPLE=OFF \
+                -DUPNPC_BUILD_TESTS=OFF \
+                -DCMAKE_POLICY_VERSION_MINIMUM=3.18 \
+                -DCMAKE_INSTALL_PREFIX=$(pwd)/thirdparty/miniupnp/miniupnpc/build
+           fi
+
+           cmake --build build-miniupnpc -j$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 4)
+           cmake --install build-miniupnpc
+           cp thirdparty/miniupnp/miniupnpc/build/lib/liblibminiupnpc.a thirdparty/miniupnp/miniupnpc/build/lib/libminiupnpc.a || true
+           # 已经添加这个库 就明确定义已经集成
+           export CFLAGS="$CFLAGS -DHAVE_LIBMINIUPNPC=1"
+           LDFLAGS="$LDFLAGS -L$(pwd)/thirdparty/miniupnp/miniupnpc/build/lib -lminiupnpc"
+         fi  
+      
+         if [ "${{ github.event.inputs.enable_natpmp }}" = "true" ]; then  
+           echo "###########编译 libnatpmp  依赖库###########"
+           MAKE_FLAGS="$MAKE_FLAGS THIRDPARTY_LIBNATPMP=1"
+           if echo "$URL" | grep -q mingw; then
+              SYSTEM_NAME=Windows
+           else
+              SYSTEM_NAME=$RUNNER_OS
+           fi
+           # 配置 CMake
+           cmake -S "$(pwd)/thirdparty/libnatpmp" -B "$(pwd)/thirdparty/libnatpmp" \
+               -DCMAKE_C_COMPILER=${CC} \
+               -DCMAKE_SYSTEM_NAME=$SYSTEM_NAME \
+               -DCMAKE_INSTALL_PREFIX="$(pwd)/thirdparty/libnatpmp" \
+               -DBUILD_SHARED_LIBS=OFF -DCMAKE_POLICY_VERSION_MINIMUM=3.18
+           # 只编译库
+           cmake --build "$(pwd)/thirdparty/libnatpmp" --target natpmp -j$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 4)
+           # 安装到指定目录
+           cmake --install "$(pwd)/thirdparty/libnatpmp"
+           ls -la thirdparty/libnatpmp/libnatpmp.a || echo "libnatpmp.a库文件不存在"
+           # 更新 LDFLAGS / CFLAGS 以便后续链接使用
+           export LDLIBS_EXTRA="$LDLIBS_EXTRA -lnatpmp"
+           LDFLAGS="$LDFLAGS -L$(pwd)/thirdparty/libnatpmp -lnatpmp"
+           CFLAGS="$CFLAGS -I$(pwd)/thirdparty/libnatpmp -DHAVE_LIBNATPMP=1"
+         fi  
+      
+         if [ "${{ github.event.inputs.enable_pcap }}" = "true" ] && [[ "$RUNNER_OS" == "macOS" ]] && [[ ! "${{ matrix.target }}" =~ windows ]]; then  
+           CONFIGURE_FLAGS="$CONFIGURE_FLAGS --enable-pcap"
+         fi  
+      
+         if [ "${{ github.event.inputs.enable_libcap }}" = "true" ] && [[ "$RUNNER_OS" == "Linux" ]] && [[ ! "${{ matrix.target }}" =~ windows ]]; then  
+           CONFIGURE_FLAGS="$CONFIGURE_FLAGS --enable-cap"
+         fi  
+      
+         if [ "${{ github.event.inputs.enable_pthread }}" = "true" ]; then  
+           CONFIGURE_FLAGS="$CONFIGURE_FLAGS --enable-pthread"
+           if echo "$URL" | grep -q mingw; then
+              # 使用MinGW的系统pthread 去掉自定义的pthread
+              export CFLAGS="$CFLAGS -DHAVE_LIBPTHREAD=1"
+              export LDFLAGS="$LDFLAGS -lpthread"
+              export LDLIBS_EXTRA="${LDLIBS_EXTRA} -lpthread"
+              # 先在 n2n_win32.h 顶部插入系统 pthread 头
+              sed -i '1i #ifdef HAVE_LIBPTHREAD\n#include <pthread.h>\n#endif' src/win32/n2n_win32.h
+              # 注释掉自定义 pthread 宏
+              sed -i '/#define pthread_t/ s/^/\/\//' src/win32/n2n_win32.h
+              sed -i '/#define pthread_mutex_t/ s/^/\/\//' src/win32/n2n_win32.h
+              sed -i '/#define pthread_create/ s/^/\/\//' src/win32/n2n_win32.h
+              sed -i '/#define pthread_cancel/ s/^/\/\//' src/win32/n2n_win32.h
+              sed -i '/#define pthread_mutex_init/ s/^/\/\//' src/win32/n2n_win32.h
+              sed -i '/#define pthread_mutex_lock/ s/^/\/\//' src/win32/n2n_win32.h
+              sed -i '/#define pthread_mutex_trylock/ s/^/\/\//' src/win32/n2n_win32.h
+              sed -i '/#define pthread_mutex_unlock/ s/^/\/\//' src/win32/n2n_win32.h
+           fi
+         fi
+         if echo "$URL" | grep -q mingw; then
+              # 为Windows修复后缀问题
+              export host_os="mingw32"
+              export EXE=.exe
+              if echo "$URL" | grep -q "aarch64-w64-mingw32"; then
+                # arm64的Windows无法修复直接硬编码后缀
+                sed -i 's/-o \$@/-o \$@$(EXE)/' tools/Makefile
+                sed -i 's/-o \$@/-o \$@$(EXE)/' apps/Makefile
+              fi
+              version="$(scripts/version.sh)"
+              # 为Windows编译tools时添加win特有库和版本无法传递问题
+              export LDLIBS_EXTRA="${LDLIBS_EXTRA} -lws2_32 -liphlpapi -lnetapi32"
+              export CFLAGS="$CFLAGS -DWIN32 -D_WINDOWS -I${GITHUB_WORKSPACE}/include -DVERSION='\"$version\"'"
+         else
+           # 为其他平台设置 工作目录 部分系统/run 是只读目录 导致无法写入 程序崩溃
+           CONFIGURE_FLAGS="$CONFIGURE_FLAGS --with-rundir=/tmp" 
+         fi
+
+         echo "########### 编译 N3N ###########"
+         ./autogen.sh 
+         ./configure $CONFIGURE_FLAGS --host="${{ matrix.URL }}" PREFIX=. CC="${CC}" LDFLAGS="${LDFLAGS}" CFLAGS="${CFLAGS}"
+         make -j$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 4) PREFIX=. $MAKE_FLAGS
+         ls -la apps/
+         make install \
+          PREFIX=. $MAKE_FLAGS \
+          CONFIG_BINDIR=./bin \
+          CONFIG_SBINDIR=./bin \
+          ETCDIR=./bin \
+          CONFIG_DOCDIR=./bin \
+          CONFIG_MANDIR=./bin \
+          CONFIG_SYSTEMDDIR=./bin
+
+          # 复制示例配置文件进去
+          cp doc/edge.conf.sample ./bin/ 2>/dev/null || true
+          cp doc/supernode.conf.sample ./bin/ 2>/dev/null || true
+          
+          echo "### 编译 tools ####"
+          make tools LDFLAGS="${LDFLAGS} -L$(pwd)/src -L$(pwd)/libs/connslot -lconnslot" LDLIBS_EXTRA="${LDLIBS_EXTRA}" LDLIBS_LOCAL="$LDLIBS_LOCAL -lconnslot" CFLAGS="${CFLAGS} -I${GITHUB_WORKSPACE}/include" 
+           
+          echo "### 安装 tools ####"
+          make -C tools install CONFIG_SBINDIR=$(pwd)/bin INSTALL=install INSTALL_PROG="install -m 755" LDFLAGS="${LDFLAGS} -L$(pwd)/src -L$(pwd)/libs/connslot -lconnslot" LDLIBS_LOCAL="$LDLIBS_LOCAL -lconnslot" CFLAGS="${CFLAGS} -I${GITHUB_WORKSPACE}/include"
+          ls -la tools/
+          
+          if [[ "$RUNNER_OS" == "Linux" ]]; then
+            echo "Linux 依赖库:"
+            ldd ./bin/n3n-edge || ldd ./bin/n3n-edge.exe || true
+            file ./bin/n3n-edge|| file ./bin/n3n-edge.exe || true
+            # 端口转发工具验证
+            ldd ./bin/n3n-portfwd || ldd ./bin/n3n-portfwd.exe || true
+            file ./bin/n3n-portfwd || file ./bin/n3n-portfwd.exe || true
+            # 端口转发工具验证 
+            ./bin/n3n-portfwd || true
+          elif [[ "$RUNNER_OS" == "macOS" ]]; then
+            echo "macOS 依赖库:"
+            otool -L ./bin/n3n-edge || true
+            # 端口转发工具验证 
+            ./bin/n3n-portfwd || true
+          elif [[ "$RUNNER_OS" == "Windows" ]]; then
+            echo "Windows 依赖库:"
+            if command -v objdump &>/dev/null; then
+              objdump -p ./bin/n3n-edge.exe | grep "DLL Name" || true
+            else
+              echo "需要 objdump 或 dumpbin 工具检查依赖"
+            fi
+            ./bin/n3n-portfwd.exe || true
+          fi
+       
+     - name: 🔧 安装 UPX
+       if: ${{ github.event.inputs.upx == 'true' && runner.os == 'Linux' && !endsWith(matrix.target, 'bsd') }}
+       uses: crazy-max/ghaction-upx@v4
+       with:
+        version: v4.2.4
+        install-only: true
+        
+     - name: 🗜 压缩二进制
+       if: ${{ github.event.inputs.upx == 'true' && runner.os == 'Linux' && !endsWith(matrix.target, 'bsd') }}
+       run: upx --lzma --best bin/* || true
+       
+     - name: 📤 上传产物
+       uses: actions/upload-artifact@v7
+       with:
+        name: n3n-${{ github.event.inputs.repo_ref }}-${{ matrix.target }}
+        path: bin/*
+
+  summary:
+    runs-on: ubuntu-latest
+    outputs:
+      table: ${{ steps.set_output.outputs.table }}
+    steps:
+      - name: 📬 检出代码
+        uses: actions/checkout@v6
+        with:
+          repository: 'n42n/n3n'
+          ref: "${{ github.event.inputs.repo_ref }}"
+          fetch-depth: 0
+          submodules: recursive
+
+      - name: 📊 生成 Summary 概览
+        if: always()
+        shell: bash
+        run: |
+          echo -e "## 🔔 编译结果总览\n\n" >> summary.md
+          echo -e "## 📦 各平台架构的功能模块集成概览\n\n" >> release.md
+
+          # ===== 基础功能开关 =====
+          base_flag() {
+            [ "$1" = "true" ] && echo "✅" || echo "❌"
+          }
+
+          ZSTD=$(base_flag "${{ github.event.inputs.enable_zstd }}")
+          OPENSSL=$(base_flag "${{ github.event.inputs.enable_openssl }}")
+          UPNP=$(base_flag "${{ github.event.inputs.enable_miniupnp }}")
+          NATPMP=$(base_flag "${{ github.event.inputs.enable_natpmp }}")
+          PTHREAD=$(base_flag "${{ github.event.inputs.enable_pthread }}")
+
+          # ===== 输出函数 =====
+          print_group() {
+            TITLE=$1
+            shift
+
+            # 折叠开始
+            echo "<details>" >> summary.md
+            echo -e "<summary><strong>${TITLE}</strong></summary>\n\n" >> summary.md
+
+            echo "<details>" >> release.md
+            echo -e "<summary><strong>${TITLE}</strong></summary>\n\n" >> release.md
+            
+            echo "| 🖥️ 架构名称 | 📦文件名称 | 🗜️ZSTD压缩 | 🔐OpenSSL加密 | 🌐UPnP端口映射 | 📡NAT-PMP端口映射 | 📦PCAP数据包抓包 | 🛡️CAP_Linux权限控制 | 🧵Pthread多线程 |" >> summary.md
+            echo "| 🖥️ 架构名称 | 📦文件名称 | 🗜️ZSTD压缩 | 🔐OpenSSL加密 | 🌐UPnP端口映射 | 📡NAT-PMP端口映射 | 📦PCAP数据包抓包 | 🛡️CAP_Linux权限控制 | 🧵Pthread多线程 |" >> release.md
+            echo "|--------|--------|--------|--------|--------|--------|--------|--------|--------|" >> summary.md
+            echo "|--------|--------|--------|--------|--------|--------|--------|--------|--------|" >> release.md
+
+            for ARCH in "$@"; do
+
+              # ===== 平台判断 =====
+              PCAP="❌"
+              LIBCAP="❌"
+
+              if [[ "$ARCH" != *windows* ]]; then
+                PCAP=$(base_flag "${{ github.event.inputs.enable_pcap }}")
+              fi
+
+              if [[ "$ARCH" == *linux* ]]; then
+                LIBCAP=$(base_flag "${{ github.event.inputs.enable_libcap }}")
+              fi
+
+              NAME="n3n-${{ github.event.inputs.repo_ref }}-${ARCH}"
+              # summary：纯文本
+              FILE_SUMMARY="📦 ${NAME}"
+              # release：带链接
+              URL="https://github.com/${{ github.repository }}/releases/download/${{ env.tag }}/${NAME}.tar.gz"
+              FILE_RELEASE="[📥 ${NAME}](${URL})"
+
+              echo "| ${ARCH} | ${FILE_SUMMARY} | ${ZSTD} | ${OPENSSL} | ${UPNP} | ${NATPMP} | ${PCAP} | ${LIBCAP} | ${PTHREAD} |" >> summary.md
+              echo "| ${ARCH} | ${FILE_RELEASE} | ${ZSTD} | ${OPENSSL} | ${UPNP} | ${NATPMP} | ${PCAP} | ${LIBCAP} | ${PTHREAD} |" >> release.md
+            done
+
+            echo "" >> summary.md
+            echo "" >> release.md
+
+             # 折叠结束
+             echo -e "</details>\n\n" >> summary.md
+             echo -e "</details>\n\n" >> release.md
+          }
+
+          # ===== 分组输出 =====
+
+          print_group "🐧 Linux 平台" \
+            aarch64-linux x86_64-linux i686-linux \
+            armv7-linux-eabihf armv7-linux-eabi \
+            arm-linux-eabihf arm-linux-eabi \
+            mipsel-linux mips-linux mips64-linux \
+            s390x-linux loongarch64-linux \
+            riscv32-linux riscv64-linux
+
+          print_group "🍎 macOS 平台" \
+            x86_64-macos arm64-macos
+
+          print_group "🪟 Windows 平台" \
+            x86_64-windows i686-windows arm64-windows
+
+          print_group "🐡 BSD 平台" \
+            x86_64-freebsd arm64-freebsd \
+            x86_64-openbsd arm64-openbsd \
+            x86_64-netbsd arm64-netbsd
+
+          # ===== Git 哈希 =====
+          SHORT_HASH=$(git rev-parse --short HEAD)
+          FULL_HASH=$(git rev-parse HEAD)
+          COMMIT_URL="https://github.com/n42n/n3n/commit/${FULL_HASH}"
+
+          echo -e "----\n\n" >> summary.md
+          echo -e "----\n\n" >> release.md
+          echo "🔖 当前编译使用的源码哈希为：[${SHORT_HASH}](${COMMIT_URL})" >> summary.md
+          echo "🔖 当前编译使用的源码哈希为：[${SHORT_HASH}](${COMMIT_URL})" >> release.md
+          echo "⏱ 请等待构建流程完成，然后刷新页面在下方 **Artifacts** 里下载程序包" >> summary.md
+          # 写入 GitHub Summary
+          cat summary.md >> $GITHUB_STEP_SUMMARY
+          
+      - name: 📤 设置release描述输出
+        id: set_output
+        run: |
+          echo "table<<EOF" >> $GITHUB_OUTPUT
+          cat release.md >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+  release:
+    needs: [build, summary]
+    if: ${{ github.event.inputs.rel != 'none' }}
+    runs-on: ubuntu-latest
+    steps:
+     - name: 📥 下载所有构建产物
+       uses: actions/download-artifact@v4
+       with:
+        path: release
+
+     - name: 📦 打包 bin 文件为 tar.gz
+       shell: bash
+       run: |
+         mkdir -p release_tar
+         for dir in release/*; do
+           target="${dir##*/}"  # 取目录名 n3n-xxx
+           cd "$dir" || continue
+           tar -czf "../../release_tar/${target}.tar.gz" *
+           cd -
+         done
+
+     - name: ⏳ 生成时间与标签
+       shell: bash
+       run: |
+          sudo timedatectl set-timezone "Asia/Shanghai"
+          echo "build_time=$(date '+%Y年%m月%d日%H:%M:%S' | jq -sRr @uri)" >> $GITHUB_ENV
+          if [ -z "${{ env.tag }}" ]; then
+              echo "tag=$(date '+%Y-%m-%d')" >> $GITHUB_ENV
+          fi
+
+     - name: ✅ 发布 Release
+       uses: softprops/action-gh-release@v2
+       with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          body: |
+           > ### ![](https://img.shields.io/badge/%E7%BC%96%E8%AF%91%E6%97%B6%E9%97%B4-${{ env.build_time }}-8267?logo=github&labelColor=%E9%A1%BB)![](https://img.shields.io/github/downloads/${{ github.repository }}/${{ env.tag }}/total?label=%E4%B8%8B%E8%BD%BD%E6%AC%A1%E6%95%B0&logo=github)
+
+           ${{ needs.summary.outputs.table }}
+
+           [配置文件在线生成](https://lmq8267.github.io/n3n)
+
+           ${{ inputs.upx && '🗜️ 已使用 UPX 压缩' || '' }}
+           
+          tag_name: ${{ env.tag }}
+          files: release_tar/*.tar.gz
+          
+  del:
+    #needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: ♻️ 删除流程记录
+        uses: Mattraks/delete-workflow-runs@main
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          retain_days: 1
+          keep_minimum_runs: 1
+
+ 

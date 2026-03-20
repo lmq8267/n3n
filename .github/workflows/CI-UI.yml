@@ -322,8 +322,10 @@ jobs:
         echo "开始下载管理界面文件..."
 
         # 下载文件
+        mkdir -p bin
         curl -L -o src/management_index.html https://github.com/lmq8267/n3n/raw/refs/heads/main/management_index.html
         curl -L -o src/management_script.js https://github.com/lmq8267/n3n/raw/refs/heads/main/management_script.js
+        curl -L -o bin/n3nctl.sh https://github.com/lmq8267/n3n/raw/refs/heads/main/n3nctl
 
         echo "文件下载完成，已替换管理界面UI"
 

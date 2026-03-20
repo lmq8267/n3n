@@ -225,9 +225,9 @@ value_to_chinese() {
             ;;
         'current')
             case "$value" in  
-                0) echo "0 非当前" ;;  
-                1) echo "1 当前" ;;  
-                2) echo "2 等待中" ;;  
+                0) echo "0 不活跃" ;;  
+                1) echo "1 已连接" ;;  
+                2) echo "2 连接中" ;;  
                 *) echo "$value" ;;  
             esac
             ;;  

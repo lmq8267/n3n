@@ -61,9 +61,9 @@ function valueToChinese(key, value) {
             'sn_errors': 'supernode错误'  
         },  
         'current': {  
-            0: '0️⃣ 非当前',  
-            1: '1️⃣ 当前',  
-            2: '2️⃣ 等待中'  
+            0: '0️⃣ 不活跃',  
+            1: '1️⃣ 已连接',  
+            2: '2️⃣ 连接中'  
         },  
         'community': {  
             '-/-': '联邦社区'  

@@ -1488,8 +1488,8 @@
             const hostnameInputs = document.querySelectorAll('#edge-supernode-list input, #sn-peer-list input, input[placeholder*="supernode"], input[placeholder*="peer"], input[placeholder*="bind"], input[placeholder*="advertise"]');
             hostnameInputs.forEach(input => {
                 input.addEventListener('input', function (e) {
-                    // 允许字母、数字、点、冒号和连字符  
-                    let value = e.target.value.replace(/[^a-zA-Z0-9.:.-]/g, '');
+                    // 允许字母、数字、点、冒号、连字符和中括号    
+                    let value = e.target.value.replace(/[^a-zA-Z0-9.:.\[\]-]/g, '');
                     e.target.value = value;
                 });
             });

@@ -181,6 +181,22 @@
             gap: 10px;
         }
 
+        .password-input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 1rem;
+            margin: 10px 0;
+            box-sizing: border-box;
+        }
+
+        .password-input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
         /* 添加表格容器样式 */
         .table-container {
             overflow-x: auto;
@@ -246,6 +262,17 @@
         }
 
         .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            padding: 20px;
+            color: var(--primary-color);
+            font-weight: 500;
+        }
+
+        .loading::before {
+            content: '';
             display: inline-block;
             width: 20px;
             height: 20px;
@@ -253,6 +280,41 @@
             border-top: 3px solid var(--primary-color);
             border-radius: 50%;
             animation: spin 1s linear infinite;
+        }
+
+        .loading-text {
+            color: var(--primary-color);
+            font-size: 1rem;
+        }
+
+        .loading-pagination {
+            color: var(--warning-color);
+            font-style: italic;
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none !important;
+            box-shadow: none !important;
+        }
+
+        .btn-loading {
+            position: relative;
+        }
+
+        .btn-loading::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 16px;
+            height: 16px;
+            margin: -8px 0 0 -8px;
+            border: 2px solid transparent;
+            border-top: 2px solid currentColor;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
         }
 
         /* 模态框样式 */
@@ -327,6 +389,15 @@
         .btn-secondary:hover {
             background: #cbd5e0;
             transform: translateY(-1px);
+        }
+
+        .error {
+            color: #d32f2f;
+            text-align: center;
+            padding: 10px;
+            background-color: #ffebee;
+            border: 1px solid #ffcdd2;
+            border-radius: 4px;
         }
 
         @keyframes fadeIn {
@@ -476,7 +547,7 @@
                     <div class="loading"></div>
                 </div>
                 <div class="btn-group">
-                    <button class="btn btn-primary" onclick="refresh_job()">
+                    <button id="refreshButton" class="btn btn-primary" onclick="refresh_job()">
                         <span>🔄</span> 立即刷新
                     </button>
                     <button class="btn btn-danger" onclick="showStopConfirm()">
@@ -573,20 +644,27 @@
         </div>
     </div>
 
+    <div id="passwordModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span class="modal-icon">🔐</span>
+                <h3 id="passwordModalTitle">需要密码验证</h3>
+            </div>
+            <div class="modal-body">
+                <p id="passwordModalMessage">请输入管理密码：</p>
+                <input type="text" id="passwordInput" class="password-input" placeholder="n3n"
+                    autocomplete="current-password">
+                <div id="passwordError" class="error" style="display:none;"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closePasswordModal()">取消</button>
+                <button class="btn btn-primary" id="passwordConfirmBtn">确认</button>
+            </div>
+        </div>
+    </div>
+
     <script src="script.js"></script>
     <script>
-        function showStopConfirm() {
-            document.getElementById('confirmModal').style.display = 'block';
-            document.getElementById('confirmBtn').onclick = function () {
-                closeModal();
-                do_stop();
-            };
-        }
-
-        function closeModal() {
-            document.getElementById('confirmModal').style.display = 'none';
-        }
-
         // 点击模态框外部关闭  
         window.onclick = function (event) {
             const modal = document.getElementById('confirmModal');
@@ -595,10 +673,13 @@
             }
         }
 
+        // 页面初始化
         window.onload = function () {
             try {
-                refresh_job();
-                refresh_setup(10000);
+                refresh_job(); // 立即获取数据
+                refreshStartTime = Math.floor(Date.now() / 1000); // 页面加载时设置起始时间
+                refresh_setup(300000); // 每5分钟刷新完整数据  
+                startRealTimeClock(); // 启动实时时钟
             } catch (e) {
                 console.error("初始化失败:", e);
             }

@@ -124,7 +124,92 @@ check_connection() {
         exit 1  
     fi  
 }  
-  
+
+# 检测响应是否溢出  
+check_overflow() {  
+    local response="$1"  
+      
+    # 检查是否包含507错误码  
+    if echo "$response" | grep -q '"code":507'; then
+        # 提取溢出时的count值  
+        echo "$response" | sed -n 's/.*"count":\s*\([0-9]*\).*/\1/p'
+        return 0
+    fi  
+      
+    return 1
+}
+
+# 单次请求函数（不处理分页）  
+jsonrpc_request_single() {  
+    local method="$1"
+    local params="$2"
+    local use_auth="$3"
+      
+    local json_data="{\"jsonrpc\":\"2.0\",\"method\":\"$method\",\"params\":$params,\"id\":1}"
+    http_request "$json_data" "$use_auth"
+}
+
+# 分页处理函数  
+handle_pagination() {  
+    local method="$1"
+    local params="$2"
+    local use_auth="$3"
+    local overflow_count="$4"
+      
+    local limit=$((overflow_count - 1))
+    local offset=0
+    local all_results=""
+    # 最大重试次数设为10，可根据实际需求调整
+    local max_retries=10
+    local retry_count=0
+      
+    while [ $retry_count -lt $max_retries ]; do  
+        # 构建分页参数  
+        local paginated_params  
+        if [ -z "$params" ] || [ "$params" = "null" ]; then  
+            paginated_params="{\"limit\":$limit,\"offset\":$offset}"
+        else  
+            # 在原有参数中添加分页参数  
+            paginated_params="$(echo "$params" | sed "s/^{/{\"limit\":$limit,\"offset\":$offset,/")"
+        fi  
+          
+        local partial_response="$(jsonrpc_request_single "$method" "$paginated_params" "$use_auth")"
+        local new_overflow_count  
+          
+        if new_overflow_count=$(check_overflow "$partial_response"); then  
+            if [ $new_overflow_count -eq $overflow_count ]; then  
+                echo -e "${RED}守护进程问题，溢出计数未减少${NC}" >&2  
+                return 1  
+            fi  
+            overflow_count=$new_overflow_count
+            limit=$((overflow_count - 1))
+            retry_count=$((retry_count + 1))
+            continue  
+        fi  
+          
+        # 提取并合并结果  
+        local partial_data="$(echo "$partial_response" | sed 's/.*"result":\s*\[\s*//; s/\s*\]\s*.*$//')"
+        if [ -z "$all_results" ]; then  
+            all_results="$partial_data"
+        else  
+            all_results="$all_results,$partial_data"
+        fi  
+          
+        # 检查是否完成  
+        local item_count=$(echo "$partial_data" | grep -o '{' | wc -l)
+        if [ $item_count -lt $limit ]; then  
+            echo "{\"result\":[$all_results]}"
+            return 0
+        fi  
+          
+        offset=$((offset + item_count))
+        retry_count=0
+    done  
+      
+    echo -e "${RED}超过最大重试次数${NC}" >&2  
+    return 1
+}
+
 # JSON-RPC请求函数  
 jsonrpc_request() {  
     local method="$1"
@@ -133,7 +218,17 @@ jsonrpc_request() {
     [ -z "$use_auth" ] && use_auth="0"
     
     local json_data="{\"jsonrpc\":\"2.0\",\"method\":\"$method\",\"params\":$params,\"id\":1}"  
-    http_request "$json_data" "$use_auth"
+    local response="$(http_request "$json_data" "$use_auth")"
+
+    # 检查是否溢出，如果溢出则自动分页  
+    local overflow_count  
+    if overflow_count=$(check_overflow "$response"); then  
+        echo -e "${YELLOW}检测到溢出，自动分页获取...${NC}" >&2  
+        handle_pagination "$method" "$params" "$use_auth" "$overflow_count"  
+        return  
+    fi  
+      
+    echo "$response"
 }  
   
 # JSON解析函数 - 提取result字段  

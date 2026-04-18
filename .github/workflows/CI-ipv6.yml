@@ -258,21 +258,21 @@ jobs:
           URL: arm64-openbsd
           OPENSSL_TARGET: BSD-aarch64
         
-        - target: x86_64-netbsd
-          os: ubuntu-latest
-          arch: x86-64
-          version: '10.1'
-          pkg_arch: x86_64
-          URL: x86_64-netbsd
-          OPENSSL_TARGET: BSD-x86_64
+        #- target: x86_64-netbsd
+        #  os: ubuntu-latest
+        #  arch: x86-64
+        #  version: '10.1'
+        #  pkg_arch: x86_64
+        #  URL: x86_64-netbsd
+        #  OPENSSL_TARGET: BSD-x86_64
 
-        - target: arm64-netbsd
-          os: ubuntu-latest
-          arch: arm64
-          version: '10.1'
-          pkg_arch: aarch64
-          URL: arm64-netbsd
-          OPENSSL_TARGET: BSD-aarch64
+        #- target: arm64-netbsd
+        #  os: ubuntu-latest
+        #  arch: arm64
+        #  version: '10.1'
+        #  pkg_arch: aarch64
+        #  URL: arm64-netbsd
+        #  OPENSSL_TARGET: BSD-aarch64
 
         # Mac
         - target: x86_64-macos

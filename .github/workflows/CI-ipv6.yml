@@ -8,10 +8,10 @@ on:
       repo_ref:
         description: |
           🌿 编译的 lmq8267/n3n-ipv6 仓库分支或版本号
-          【示例: main / dev / 3.4.4】
+          【示例: main / ipv6 / 3.4.4】
           【默认：主分支 main】
         required: true
-        default: "main"
+        default: "ipv6"
 
       rel:
         description: |
@@ -1431,7 +1431,7 @@ jobs:
           # ===== Git 哈希 =====
           SHORT_HASH=$(git rev-parse --short HEAD)
           FULL_HASH=$(git rev-parse HEAD)
-          COMMIT_URL="https://github.com/n42n/n3n/commit/${FULL_HASH}"
+          COMMIT_URL="https://github.com/lmq8267/n3n-ipv6/commit/${FULL_HASH}"
 
           echo -e "----\n\n" >> summary.md
           echo -e "----\n\n" >> release.md

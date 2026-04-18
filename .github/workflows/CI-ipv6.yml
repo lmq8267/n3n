@@ -1334,7 +1334,7 @@ jobs:
       - name: 📬 检出代码
         uses: actions/checkout@v6
         with:
-          repository: 'n42n/n3n'
+          repository: 'lmq8267/n3n-ipv6'
           ref: "${{ github.event.inputs.repo_ref }}"
           fetch-depth: 0
           submodules: recursive

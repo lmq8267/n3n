@@ -6,6 +6,8 @@
 
 [在线配置文件生成](https://lmq8267.github.io/n3n) 
 
+[网络桥接问题](BRIDGING_AND_TRAFFIC.md)
+
 最简单的启动方式：用上述配置文件在线生成一个配置即可一行命令启动，可兼容连接`N2N v3`版本的supernode
 
 ```

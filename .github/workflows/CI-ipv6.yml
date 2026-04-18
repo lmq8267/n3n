@@ -241,22 +241,22 @@ jobs:
           URL: arm64-freebsd
           OPENSSL_TARGET: BSD-aarch64
 
-        - target: x86_64-openbsd
-          os: ubuntu-latest
-          arch: x86-64
-          version: '7.8'
-          pkg_arch: amd64
-          URL: x86_64-openbsd
-          OPENSSL_TARGET: BSD-x86_64
+        #- target: x86_64-openbsd
+        #  os: ubuntu-latest
+        #  arch: x86-64
+        #  version: '7.8'
+        #  pkg_arch: amd64
+        #  URL: x86_64-openbsd
+        # OPENSSL_TARGET: BSD-x86_64
 
         # arm64-openbsd 全功能版构建约需2小时35分
-        - target: arm64-openbsd
-          os: ubuntu-latest
-          arch: arm64
-          version: '7.8'
-          pkg_arch: aarch64
-          URL: arm64-openbsd
-          OPENSSL_TARGET: BSD-aarch64
+        #- target: arm64-openbsd
+        #  os: ubuntu-latest
+        #  arch: arm64
+        #  version: '7.8'
+        #  pkg_arch: aarch64
+        #  URL: arm64-openbsd
+        #  OPENSSL_TARGET: BSD-aarch64
         
         #- target: x86_64-netbsd
         #  os: ubuntu-latest

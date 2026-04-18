@@ -1010,6 +1010,6 @@ route add 192.168.2.0 mask 255.255.255.0 10.0.0.2
 5. **macOS 用户**：使用路由模式，避免桥接
 
 ### 📚 相关文档
-- [doc/Bridging.md](doc/Bridging.md) - Linux 桥接配置详细说明
-- [doc/Routing.md](doc/Routing.md) - 路由模式配置详细说明
-- [doc/Building.md](doc/Building.md) - 各平台编译说明
+- [doc/Bridging.md](https://github.com/n42n/n3n/blob/main/doc/Bridging.md) - Linux 桥接配置详细说明
+- [doc/Routing.md](https://github.com/n42n/n3n/blob/main/doc/Routing.md) - 路由模式配置详细说明
+- [doc/Building.md](https://github.com/n42n/n3n/blob/main/doc/Building.md) - 各平台编译说明
